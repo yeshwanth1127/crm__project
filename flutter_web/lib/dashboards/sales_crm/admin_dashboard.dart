@@ -31,7 +31,23 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
   @override
   void initState() {
     super.initState();
-    fetchDashboardData();
+    _initializeFeatures();
+  }
+
+  Future<void> _initializeFeatures() async {
+    try {
+      // Initialize features for the current user
+      await FeatureFilterService.initializeFeatures();
+      
+      // Force refresh the dashboard to show filtered features
+      if (mounted) {
+        setState(() {});
+      }
+      
+      print('🎯 Dashboard features initialized successfully');
+    } catch (e) {
+      print('❌ Error initializing dashboard features: $e');
+    }
   }
 
   Future<Customer> fetchCustomer() async {
@@ -179,6 +195,29 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Debug Refresh Button
+                        GestureDetector(
+                          onTap: () async {
+                            print('🔄 Manual refresh requested');
+                            await _initializeFeatures();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              '🔄 Refresh Features',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -412,7 +451,11 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
     ];
 
     // Filter menu items based on available features
-    final availablePages = FeatureFilterService.filterDashboardMenu(allPages);
+    // TEMPORARILY DISABLED - Show all features
+    final availablePages = allPages; // FeatureFilterService.filterDashboardMenu(allPages);
+    
+    print('🔍 TEMPORARILY SHOWING ALL FEATURES (filtering disabled)');
+    print('📋 All menu items: ${allPages.map((item) => item['title']).toList()}');
 
     return availablePages.map((item) {
       final route = item['route'] as String? ?? '';
