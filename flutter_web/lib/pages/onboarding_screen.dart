@@ -49,6 +49,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('company_id', response['company_id']);
         await prefs.setString('crm_type', response['crm_type']);
+        
+        // Store plan name for feature filtering fallback
+        if (widget.selectedPlan != null) {
+          await prefs.setString('selected_plan_name', widget.selectedPlan!['name']);
+        }
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

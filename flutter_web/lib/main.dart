@@ -65,15 +65,16 @@ class _SplashDeciderState extends State<SplashDecider> {
     final int? userId = prefs.getInt('user_id'); // used for salesmanId
 
     if (role != null && crmType != null && email != null && companyId != null) {
-      // Initialize features based on subscription before navigating
-      await FeatureFilterService.initializeFeatures();
+      // Initialize features for the user
+      try {
+        await FeatureFilterService.initializeFeatures();
+      } catch (e) {
+        print('Feature initialization failed: $e');
+        // Continue to dashboard with basic features
+      }
       
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => determineDashboard(crmType, role, email, companyId, userId),
-        ),
-      );
+      // Navigate to dashboard
+      Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
       Navigator.pushReplacement(
         context,

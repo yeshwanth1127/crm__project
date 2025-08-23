@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'subscription_service.dart';
+import 'dart:convert'; // Added for json.decode
 
 class FeatureFilterService {
   static List<String> _availableFeatures = [];
@@ -137,11 +138,36 @@ class FeatureFilterService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final companyId = prefs.getInt('company_id');
+      final userToken = prefs.getString('user_token');
       
-      if (companyId != null) {
+      // Check if we have valid authentication
+      if (companyId == null || userToken == null) {
+        print('No company ID or user token found, using core features');
+        _availableFeatures = _getCoreFeatures();
+        _currentPlan = 'No Plan';
+        return;
+      }
+      
+      try {
         final featuresData = await SubscriptionService.getCompanyFeatures(companyId);
         
-        _availableFeatures = List<String>.from(featuresData['features'] ?? []);
+        // Handle features data that might come as JSON string or list
+        dynamic featuresRaw = featuresData['features'];
+        if (featuresRaw is String) {
+          // Parse JSON string to list
+          try {
+            final List<dynamic> parsedFeatures = json.decode(featuresRaw);
+            _availableFeatures = parsedFeatures.map((f) => f.toString()).toList();
+          } catch (e) {
+            print('Error parsing features JSON: $e');
+            _availableFeatures = _getCoreFeatures();
+          }
+        } else if (featuresRaw is List) {
+          _availableFeatures = featuresRaw.map((f) => f.toString()).toList();
+        } else {
+          _availableFeatures = _getCoreFeatures();
+        }
+        
         _currentPlan = featuresData['plan_name'] ?? 'No Plan';
         _userLimit = featuresData['user_limit'] ?? 0;
         _currentUsers = featuresData['current_users'] ?? 0;
@@ -150,11 +176,42 @@ class FeatureFilterService {
         if (_availableFeatures.isEmpty && _currentPlan != 'No Plan') {
           _availableFeatures = _planFeatures[_currentPlan] ?? _getCoreFeatures();
         }
+        
+        print('Features initialized successfully: ${_availableFeatures.length} features for plan: $_currentPlan');
+        
+      } catch (apiError) {
+        print('API error fetching features: $apiError');
+        // Try to get plan info from local storage as fallback
+        await _initializeFromLocalStorage();
       }
+      
     } catch (e) {
       print('Error initializing features: $e');
       // Fallback to core features only
       _availableFeatures = _getCoreFeatures();
+      _currentPlan = 'No Plan';
+    }
+  }
+
+  // Fallback method to initialize features from local storage
+  static Future<void> _initializeFromLocalStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final planName = prefs.getString('selected_plan_name');
+      
+      if (planName != null && _planFeatures.containsKey(planName)) {
+        _availableFeatures = _planFeatures[planName]!;
+        _currentPlan = planName;
+        print('Features initialized from local storage for plan: $planName');
+      } else {
+        _availableFeatures = _getCoreFeatures();
+        _currentPlan = 'No Plan';
+        print('No plan found in local storage, using core features');
+      }
+    } catch (e) {
+      print('Error initializing from local storage: $e');
+      _availableFeatures = _getCoreFeatures();
+      _currentPlan = 'No Plan';
     }
   }
 
