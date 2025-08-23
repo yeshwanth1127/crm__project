@@ -179,58 +179,71 @@ class FeatureFilterService {
 
   // Initialize features for the current user
   static Future<void> initializeFeatures() async {
+    print('🚀 Starting feature initialization...');
     try {
       final prefs = await SharedPreferences.getInstance();
       final companyId = prefs.getInt('company_id');
       final userToken = prefs.getString('user_token');
       
+      print('📱 Company ID: $companyId, User Token: ${userToken != null ? "Present" : "Missing"}');
+      
       // Check if we have valid authentication
       if (companyId == null || userToken == null) {
-        print('No company ID or user token found, using core features');
+        print('❌ No company ID or user token found, using core features');
         _availableFeatures = _getCoreFeatures();
         _currentPlan = 'No Plan';
         return;
       }
       
       try {
+        print('🌐 Fetching features from API for company: $companyId');
         final featuresData = await SubscriptionService.getCompanyFeatures(companyId);
+        print('📡 API Response: $featuresData');
         
         // Handle features data that might come as JSON string or list
         dynamic featuresRaw = featuresData['features'];
+        print('🔧 Raw features data type: ${featuresRaw.runtimeType}, value: $featuresRaw');
+        
         if (featuresRaw is String) {
           // Parse JSON string to list
           try {
             final List<dynamic> parsedFeatures = json.decode(featuresRaw);
             _availableFeatures = parsedFeatures.map((f) => f.toString()).toList();
+            print('✅ Parsed features from JSON string: $_availableFeatures');
           } catch (e) {
-            print('Error parsing features JSON: $e');
+            print('❌ Error parsing features JSON: $e');
             _availableFeatures = _getCoreFeatures();
           }
         } else if (featuresRaw is List) {
           _availableFeatures = featuresRaw.map((f) => f.toString()).toList();
+          print('✅ Features from list: $_availableFeatures');
         } else {
           _availableFeatures = _getCoreFeatures();
+          print('⚠️ No features data, using core features: $_availableFeatures');
         }
         
         _currentPlan = featuresData['plan_name'] ?? 'No Plan';
         _userLimit = featuresData['user_limit'] ?? 0;
         _currentUsers = featuresData['current_users'] ?? 0;
         
+        print('📋 Plan: $_currentPlan, User Limit: $_userLimit, Current Users: $_currentUsers');
+        
         // If no features from API, use plan-based features
         if (_availableFeatures.isEmpty && _currentPlan != 'No Plan') {
           _availableFeatures = getPlanFeatures(_currentPlan);
+          print('🔄 Using plan-based features: $_availableFeatures');
         }
         
-        print('Features initialized successfully: ${_availableFeatures.length} features for plan: $_currentPlan');
+        print('✅ Features initialized successfully: ${_availableFeatures.length} features for plan: $_currentPlan');
         
       } catch (apiError) {
-        print('API error fetching features: $apiError');
+        print('❌ API error fetching features: $apiError');
         // Try to get plan info from local storage as fallback
         await _initializeFromLocalStorage();
       }
       
     } catch (e) {
-      print('Error initializing features: $e');
+      print('❌ Error initializing features: $e');
       // Fallback to core features only
       _availableFeatures = _getCoreFeatures();
       _currentPlan = 'No Plan';
@@ -294,11 +307,33 @@ class FeatureFilterService {
 
   // Filter dashboard menu items based on available features
   static List<Map<String, dynamic>> filterDashboardMenu(List<Map<String, dynamic>> allMenuItems) {
-    return allMenuItems.where((item) {
+    print('🔍 Filtering dashboard menu...');
+    print('📋 Available features: $_availableFeatures');
+    print('📋 Current plan: $_currentPlan');
+    print('📋 User limit: $_userLimit');
+    
+    final filteredItems = allMenuItems.where((item) {
       final featureKey = item['feature_key'];
-      if (featureKey == null) return true; // Always show items without feature requirements
-      return hasFeature(featureKey);
+      final title = item['title'] as String? ?? '';
+      
+      // Always show User Management regardless of features
+      if (title == 'User Management') {
+        print('✅ Always showing User Management (bypassing feature check)');
+        return true;
+      }
+      
+      if (featureKey == null) {
+        print('✅ Showing item "${item['title']}" (no feature requirement)');
+        return true; // Always show items without feature requirements
+      }
+      
+      final hasFeature = hasFeature(featureKey);
+      print('${hasFeature ? "✅" : "❌"} Item "${item['title']}" with feature "$featureKey": ${hasFeature ? "SHOWING" : "HIDDEN"}');
+      return hasFeature;
     }).toList();
+    
+    print('📋 Final filtered menu items: ${filteredItems.map((item) => item['title']).toList()}');
+    return filteredItems;
   }
 
   // Check if user can access advanced features
