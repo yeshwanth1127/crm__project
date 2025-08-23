@@ -194,7 +194,7 @@ def initialize_default_plans(db: Session = Depends(get_db)):
             "features": [
                 "contact_management", "lead_management", "task_tracking", 
                 "basic_dashboard", "limited_custom_fields", "mobile_access", 
-                "email_support", "ssl_security", "vps_hosting"
+                "email_support", "ssl_security", "vps_hosting", "user_management"
             ]
         },
         {
@@ -212,7 +212,8 @@ def initialize_default_plans(db: Session = Depends(get_db)):
                 "lead_pipeline", "visual_sales_pipeline", "email_sms_notifications",
                 "custom_dashboards", "customer_segments", "custom_fields",
                 "support_tickets", "role_based_access", "customer_notes",
-                "email_sms_integration", "team_chat", "auto_backups"
+                "email_sms_integration", "team_chat", "auto_backups",
+                "user_management"
             ]
         },
         {

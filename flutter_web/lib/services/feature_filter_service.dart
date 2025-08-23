@@ -192,6 +192,8 @@ class FeatureFilterService {
         print('❌ No company ID or user token found, using core features');
         _availableFeatures = _getCoreFeatures();
         _currentPlan = 'No Plan';
+        _userLimit = 3; // Default minimum limit
+        _currentUsers = 1; // At least 1 user (the admin who is logged in)
         return;
       }
       
@@ -223,8 +225,14 @@ class FeatureFilterService {
         }
         
         _currentPlan = featuresData['plan_name'] ?? 'No Plan';
-        _userLimit = featuresData['user_limit'] ?? 0;
-        _currentUsers = featuresData['current_users'] ?? 0;
+        _userLimit = featuresData['user_limit'] ?? 3; // Default to 3 if not provided
+        _currentUsers = featuresData['current_users'] ?? 1; // Default to 1 if not provided
+        
+        // Ensure current users is never 0 (at least 1 admin user exists)
+        if (_currentUsers <= 0) {
+          _currentUsers = 1;
+          print('⚠️ Current users was 0, setting to 1 (admin user)');
+        }
         
         print('📋 Plan: $_currentPlan, User Limit: $_userLimit, Current Users: $_currentUsers');
         
@@ -240,6 +248,12 @@ class FeatureFilterService {
         print('❌ API error fetching features: $apiError');
         // Try to get plan info from local storage as fallback
         await _initializeFromLocalStorage();
+        
+        // If we still don't have features, try to get them from the current plan
+        if (_availableFeatures.isEmpty && _currentPlan != 'No Plan') {
+          _availableFeatures = getPlanFeatures(_currentPlan);
+          print('🔄 Using plan-based features as fallback: $_availableFeatures');
+        }
       }
       
     } catch (e) {
@@ -247,7 +261,23 @@ class FeatureFilterService {
       // Fallback to core features only
       _availableFeatures = _getCoreFeatures();
       _currentPlan = 'No Plan';
+      _userLimit = 3; // Default minimum limit
+      _currentUsers = 1; // At least 1 user (the admin who is logged in)
     }
+    
+    // Final validation - ensure user count is never 0
+    if (_currentUsers <= 0) {
+      _currentUsers = 1;
+      print('⚠️ Final validation: Current users was 0, setting to 1 (admin user)');
+    }
+    
+    // Final validation
+    print('🔍 Final initialization state:');
+    print('   - Available features: $_availableFeatures');
+    print('   - Current plan: $_currentPlan');
+    print('   - User limit: $_userLimit');
+    print('   - Current users: $_currentUsers');
+    print('   - Has user_management: ${hasFeature('user_management')}');
   }
 
   // Fallback method to initialize features from local storage
@@ -260,18 +290,27 @@ class FeatureFilterService {
         _availableFeatures = getPlanFeatures(planName);
         _currentPlan = planName;
         _userLimit = getPlanUserLimit(planName);
-        print('Features initialized from local storage for plan: $planName with user limit: $_userLimit');
+        _currentUsers = 1; // At least 1 user (the admin who is logged in)
+        print('✅ Features initialized from local storage for plan: $planName with user limit: $_userLimit, current users: $_currentUsers');
       } else {
         _availableFeatures = _getCoreFeatures();
         _currentPlan = 'No Plan';
         _userLimit = 3; // Default minimum limit
-        print('No plan found in local storage, using core features with default user limit: $_userLimit');
+        _currentUsers = 1; // At least 1 user (the admin who is logged in)
+        print('⚠️ No plan found in local storage, using core features with default user limit: $_userLimit, current users: $_currentUsers');
+      }
+      
+      // Ensure current users is never 0
+      if (_currentUsers <= 0) {
+        _currentUsers = 1;
+        print('⚠️ Current users was 0, setting to 1 (admin user)');
       }
     } catch (e) {
-      print('Error initializing from local storage: $e');
+      print('❌ Error initializing from local storage: $e');
       _availableFeatures = _getCoreFeatures();
       _currentPlan = 'No Plan';
       _userLimit = 3; // Default minimum limit
+      _currentUsers = 1; // At least 1 user (the admin who is logged in)
     }
   }
 
@@ -316,17 +355,19 @@ class FeatureFilterService {
       final featureKey = item['feature_key'];
       final title = item['title'] as String? ?? '';
       
-      // Always show User Management regardless of features
+      // ALWAYS show User Management (but functionality will be limited by user count)
       if (title == 'User Management') {
-        print('✅ Always showing User Management (bypassing feature check)');
+        print('✅ Always showing User Management (functionality limited by plan)');
         return true;
       }
       
+      // Show items without feature requirements
       if (featureKey == null) {
         print('✅ Showing item "${item['title']}" (no feature requirement)');
-        return true; // Always show items without feature requirements
+        return true;
       }
       
+      // Check if feature is available for current plan
       final hasFeatureAccess = hasFeature(featureKey);
       print('${hasFeatureAccess ? "✅" : "❌"} Item "${item['title']}" with feature "$featureKey": ${hasFeatureAccess ? "SHOWING" : "HIDDEN"}');
       return hasFeatureAccess;
@@ -358,7 +399,9 @@ class FeatureFilterService {
 
   // Check if user can create more users
   static bool canCreateMoreUsers() {
-    return _currentUsers < _userLimit;
+    final canCreate = _currentUsers < _userLimit;
+    print('👥 User creation check: $_currentUsers < $_userLimit = $canCreate');
+    return canCreate;
   }
 
   // Get remaining user slots
@@ -373,7 +416,7 @@ class FeatureFilterService {
 
   // Get user management info
   static Map<String, dynamic> getUserManagementInfo() {
-    return {
+    final info = {
       'can_access': canAccessUserManagement(),
       'current_users': _currentUsers,
       'user_limit': _userLimit,
@@ -381,6 +424,8 @@ class FeatureFilterService {
       'remaining_slots': getRemainingUserSlots(),
       'plan_name': _currentPlan,
     };
+    print('📊 User Management Info: $info');
+    return info;
   }
 
   // Get feature-based dashboard title
@@ -420,5 +465,23 @@ class FeatureFilterService {
     }
     
     return suggestions;
+  }
+
+  // Method to update current user count (call this when users are created/deleted)
+  static void updateUserCount(int newCount) {
+    _currentUsers = newCount;
+    print('👥 Updated user count to: $_currentUsers');
+  }
+
+  // Get current plan name from local storage
+  static String getCurrentPlanName() {
+    return _currentPlan;
+  }
+
+  // Check if current plan has a specific feature
+  static bool hasPlanFeature(String featureKey) {
+    if (_currentPlan == 'No Plan' || _currentPlan.isEmpty) return false;
+    final planFeatures = getPlanFeatures(_currentPlan);
+    return planFeatures.contains(featureKey);
   }
 }
