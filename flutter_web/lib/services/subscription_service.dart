@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class SubscriptionService {
-  static const String baseUrl = 'http://localhost:8000/api';
+  static const String baseUrl = 'https://orbitco.in/api';
   
   // Get available subscription plans
   static Future<List<Map<String, dynamic>>> getAvailablePlans() async {
