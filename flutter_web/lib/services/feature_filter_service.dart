@@ -363,7 +363,7 @@ class FeatureFilterService {
   static bool isFeatureAvailableForPlan(String featureKey) {
     if (_currentPlan == 'No Plan') return false;
     final planFeatures = getPlanFeatures(_currentPlan);
-    return planFeatures?.contains(featureKey) ?? false;
+    return planFeatures.contains(featureKey);
   }
 
   // Get plan upgrade suggestions
