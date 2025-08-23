@@ -25,7 +25,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   String fullName = '', email = '', phone = '', password = '', confirmPassword = '';
   bool isLoading = false;
-  final String backendUrl = 'http://127.0.0.1:8000/api/register';
+  final String backendUrl = 'https://orbitco.in/api/register';
 
   Future<void> register() async {
     if (!_formKey.currentState!.validate()) return;

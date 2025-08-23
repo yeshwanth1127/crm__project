@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 /// ✅ Adjust your baseUrl based on your testing environment:
-/// For Web → 'http://127.0.0.1:8000'
+/// For Web → 'https://orbitco.in/api'
 /// For Android Emulator → 'http://10.0.2.2:8000'
 /// For physical device → 'http://<your_local_ip>:8000'
 
