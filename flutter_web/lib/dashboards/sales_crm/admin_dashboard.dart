@@ -5,6 +5,7 @@ import 'package:flutter_web/sales_crm/tasks/task_models.dart';
 import 'package:flutter_web/sales_crm/tasks/task_type_selection_screen.dart';
 import 'package:flutter_web/sales_crm/user_management/user_management.dart';
 import 'package:flutter_web/services/api_service.dart';
+import 'package:flutter_web/services/feature_filter_service.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -98,59 +99,54 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                   SizedBox(height: 40),
                   // Admin Profile Header
                   Container(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1,
-                      ),
                     ),
                     child: Column(
                       children: [
-                        Container(
-                          width: 70,
-                          height: 70,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF2193b0), Color(0xFF6dd5ed)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withOpacity(0.3),
-                                blurRadius: 10,
-                                spreadRadius: 2,
-                              )
-                            ],
-                          ),
-                          child: Center(
-                            child: Icon(
-                              Icons.admin_panel_settings,
-                              size: 36,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          "Admin Panel",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          child: Icon(
+                            Icons.person,
+                            size: 35,
                             color: Colors.white,
-                            letterSpacing: 0.5,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 12),
                         Text(
-                          "Company ID: ${widget.companyId}",
+                          "Admin",
                           style: TextStyle(
-                            fontSize: 12,
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Plan Information Display
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            FeatureFilterService.getPlanInfo()['plan_name'] ?? 'No Plan',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Sales CRM",
+                          style: TextStyle(
                             color: Colors.white70,
+                            fontSize: 14,
                           ),
                         ),
                       ],
@@ -326,118 +322,138 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
   }
 
   List<Widget> _navButtons(BuildContext context) {
-    final pages = [
+    final allPages = [
       {
         'title': 'Dashboard Overview',
         'route': '/dashboard-overview',
-        'icon': Icons.dashboard_rounded
+        'icon': Icons.dashboard_rounded,
+        'feature_key': 'basic_dashboard'
       },
       {
         'title': 'User Management',
         'route': '/user-management',
-        'icon': Icons.people_alt_rounded
+        'icon': Icons.people_alt_rounded,
+        'feature_key': 'user_management'
       },
-      {'title': 'Customers', 'route': '/customers', 'icon': Icons.group_rounded},
+      {
+        'title': 'Customers', 
+        'route': '/customers', 
+        'icon': Icons.group_rounded,
+        'feature_key': 'contact_management'
+      },
       {
         'title': 'Interactions',
-        'route': '/interactions',
-        'icon': Icons.chat_bubble_rounded
+        'route': '/interactions', 
+        'icon': Icons.chat_bubble_rounded,
+        'feature_key': 'conversation_logs'
       },
-      {'title': 'Tasks', 'route': '/tasks', 'icon': Icons.task_rounded},
+      {
+        'title': 'Tasks', 
+        'route': '/tasks', 
+        'icon': Icons.task_rounded,
+        'feature_key': 'task_tracking'
+      },
       {
         'title': 'Follow-ups',
-        'route': '/followups',
-        'icon': Icons.notifications_active_rounded
+        'route': '/followups', 
+        'icon': Icons.notifications_active_rounded,
+        'feature_key': 'follow_up_reminders'
       },
       {
         'title': 'Pipeline Analytics',
-        'route': '/pipeline-analytics',
-        'icon': Icons.analytics_rounded
+        'route': '/pipeline-analytics', 
+        'icon': Icons.analytics_rounded,
+        'feature_key': 'visual_sales_pipeline'
       },
       {
         'title': 'Feature Settings',
-        'route': '/feature-settings',
-        'icon': Icons.settings_applications_rounded
+        'route': '/feature-settings', 
+        'icon': Icons.settings_applications_rounded,
+        'feature_key': 'custom_fields'
       },
       {
         'title': 'Company Settings',
-        'route': '/company-settings',
-        'icon': Icons.business_rounded
+        'route': '/company-settings', 
+        'icon': Icons.business_rounded,
+        'feature_key': 'role_based_access'
       },
     ];
 
-    return pages.map((item) {
-  final route = item['route'] as String? ?? '';
-  final title = item['title'] as String? ?? '';
-  final icon = item['icon'] as IconData? ?? Icons.error;
-  
-  final isSelected = selectedPage == route;
-  
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    child: MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () {
-          if (title == 'User Management') {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => UserManagementScreen()),
-            );
-          } else {
-            setState(() {
-              selectedPage = route;
-            });
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? Colors.white.withOpacity(0.2)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            border: isSelected
-                ? Border.all(
-                    color: Colors.white.withOpacity(0.5),
-                    width: 1,
-                  )
-                : null,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? Colors.white : Colors.white70,
-                size: 22,
+    // Filter menu items based on available features
+    final availablePages = FeatureFilterService.filterDashboardMenu(allPages);
+
+    return availablePages.map((item) {
+      final route = item['route'] as String? ?? '';
+      final title = item['title'] as String? ?? '';
+      final icon = item['icon'] as IconData? ?? Icons.error;
+      
+      final isSelected = selectedPage == route;
+      
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () {
+              if (title == 'User Management') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => UserManagementScreen()),
+                );
+              } else {
+                setState(() {
+                  selectedPage = route;
+                });
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withOpacity(0.2)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: isSelected
+                    ? Border.all(
+                        color: Colors.white.withOpacity(0.5),
+                        width: 1,
+                      )
+                    : null,
               ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white70,
-                  fontSize: 15,
-                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-                ),
-              ),
-              const Spacer(),
-              if (isSelected)
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: isSelected ? Colors.white : Colors.white70,
+                    size: 22,
                   ),
-                ),
-            ],
+                  const SizedBox(width: 12),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.white70,
+                      fontSize: 15,
+                      fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (isSelected)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
-      ),
-    ),
-  );
-}).toList();
+      );
+    }).toList();
   }
 
   Widget _buildDashboardOverview() {

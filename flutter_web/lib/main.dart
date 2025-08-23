@@ -8,6 +8,7 @@ import 'package:flutter_web/dashboards/support_crm/admin_dashboard.dart' as supp
 import 'package:flutter_web/dashboards/support_crm/support_staff_dashboard.dart';
 import 'package:flutter_web/sales_crm/interactions/interaction_form_screen.dart';
 import 'package:flutter_web/sales_crm/interactions/interaction_timeline_screen.dart';
+import 'package:flutter_web/services/feature_filter_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'pages/landing_screen.dart';
@@ -64,6 +65,9 @@ class _SplashDeciderState extends State<SplashDecider> {
     final int? userId = prefs.getInt('user_id'); // used for salesmanId
 
     if (role != null && crmType != null && email != null && companyId != null) {
+      // Initialize features based on subscription before navigating
+      await FeatureFilterService.initializeFeatures();
+      
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
