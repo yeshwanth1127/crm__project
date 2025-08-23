@@ -44,11 +44,11 @@ class UserApiService {
 
   // ✅ Create User
   static Future<dynamic> createUser(Map<String, dynamic> userData) async {
+  final headers = await _getAuthHeaders();
+  
   final response = await http.post(
     Uri.parse('$baseUrl/create-user'),
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: headers,
     body: jsonEncode(userData),
   );
 
