@@ -327,9 +327,9 @@ class FeatureFilterService {
         return true; // Always show items without feature requirements
       }
       
-      final hasFeature = hasFeature(featureKey);
-      print('${hasFeature ? "✅" : "❌"} Item "${item['title']}" with feature "$featureKey": ${hasFeature ? "SHOWING" : "HIDDEN"}');
-      return hasFeature;
+      final hasFeatureAccess = hasFeature(featureKey);
+      print('${hasFeatureAccess ? "✅" : "❌"} Item "${item['title']}" with feature "$featureKey": ${hasFeatureAccess ? "SHOWING" : "HIDDEN"}');
+      return hasFeatureAccess;
     }).toList();
     
     print('📋 Final filtered menu items: ${filteredItems.map((item) => item['title']).toList()}');
