@@ -189,9 +189,9 @@ class FeatureFilterService {
       
       // Check if we have valid authentication
       if (companyId == null || userToken == null) {
-        print('❌ No company ID or user token found, using core features');
-        _availableFeatures = _getCoreFeatures();
-        _currentPlan = 'No Plan';
+        print('❌ No company ID or user token found, using Launch plan as fallback');
+        _availableFeatures = getPlanFeatures('Launch');
+        _currentPlan = 'Launch Plan';
         _userLimit = 3; // Default minimum limit
         _currentUsers = 1; // At least 1 user (the admin who is logged in)
         return;
@@ -224,7 +224,7 @@ class FeatureFilterService {
           print('⚠️ No features data, using core features: $_availableFeatures');
         }
         
-        _currentPlan = featuresData['plan_name'] ?? 'No Plan';
+        _currentPlan = featuresData['plan_name'] ?? 'Launch Plan';
         _userLimit = featuresData['user_limit'] ?? 3; // Default to 3 if not provided
         _currentUsers = featuresData['current_users'] ?? 1; // Default to 1 if not provided
         
@@ -237,7 +237,7 @@ class FeatureFilterService {
         print('📋 Plan: $_currentPlan, User Limit: $_userLimit, Current Users: $_currentUsers');
         
         // If no features from API, use plan-based features
-        if (_availableFeatures.isEmpty && _currentPlan != 'No Plan') {
+        if (_availableFeatures.isEmpty && _currentPlan != 'Launch Plan') {
           _availableFeatures = getPlanFeatures(_currentPlan);
           print('🔄 Using plan-based features: $_availableFeatures');
         }
@@ -246,21 +246,32 @@ class FeatureFilterService {
         
       } catch (apiError) {
         print('❌ API error fetching features: $apiError');
+        print('🔄 Falling back to local storage and plan-based features...');
+        
         // Try to get plan info from local storage as fallback
         await _initializeFromLocalStorage();
         
         // If we still don't have features, try to get them from the current plan
-        if (_availableFeatures.isEmpty && _currentPlan != 'No Plan') {
+        if (_availableFeatures.isEmpty && _currentPlan != 'Launch Plan') {
           _availableFeatures = getPlanFeatures(_currentPlan);
           print('🔄 Using plan-based features as fallback: $_availableFeatures');
+        }
+        
+        // Final fallback: use Launch plan features (which we know exist in the database)
+        if (_availableFeatures.isEmpty) {
+          _availableFeatures = getPlanFeatures('Launch');
+          _currentPlan = 'Launch Plan';
+          _userLimit = 3;
+          _currentUsers = 1;
+          print('🔄 Final fallback: Using Launch plan features');
         }
       }
       
     } catch (e) {
       print('❌ Error initializing features: $e');
-      // Fallback to core features only
-      _availableFeatures = _getCoreFeatures();
-      _currentPlan = 'No Plan';
+      // Fallback to Launch plan features
+      _availableFeatures = getPlanFeatures('Launch');
+      _currentPlan = 'Launch Plan';
       _userLimit = 3; // Default minimum limit
       _currentUsers = 1; // At least 1 user (the admin who is logged in)
     }
@@ -293,11 +304,12 @@ class FeatureFilterService {
         _currentUsers = 1; // At least 1 user (the admin who is logged in)
         print('✅ Features initialized from local storage for plan: $planName with user limit: $_userLimit, current users: $_currentUsers');
       } else {
-        _availableFeatures = _getCoreFeatures();
-        _currentPlan = 'No Plan';
+        // Use Launch plan as default since we know it exists in the database
+        _availableFeatures = getPlanFeatures('Launch');
+        _currentPlan = 'Launch Plan';
         _userLimit = 3; // Default minimum limit
         _currentUsers = 1; // At least 1 user (the admin who is logged in)
-        print('⚠️ No plan found in local storage, using core features with default user limit: $_userLimit, current users: $_currentUsers');
+        print('⚠️ No plan found in local storage, using Launch plan with default user limit: $_userLimit, current users: $_currentUsers');
       }
       
       // Ensure current users is never 0
@@ -307,8 +319,9 @@ class FeatureFilterService {
       }
     } catch (e) {
       print('❌ Error initializing from local storage: $e');
-      _availableFeatures = _getCoreFeatures();
-      _currentPlan = 'No Plan';
+      // Use Launch plan as final fallback
+      _availableFeatures = getPlanFeatures('Launch');
+      _currentPlan = 'Launch Plan';
       _userLimit = 3; // Default minimum limit
       _currentUsers = 1; // At least 1 user (the admin who is logged in)
     }
@@ -471,6 +484,17 @@ class FeatureFilterService {
   static void updateUserCount(int newCount) {
     _currentUsers = newCount;
     print('👥 Updated user count to: $_currentUsers');
+  }
+
+  // Method to force refresh user count from API
+  static Future<void> forceRefreshUserCount() async {
+    try {
+      print('🔄 Force refreshing user count from API...');
+      await initializeFeatures();
+      print('✅ User count force refreshed successfully');
+    } catch (e) {
+      print('❌ Error force refreshing user count: $e');
+    }
   }
 
   // Get current plan name from local storage

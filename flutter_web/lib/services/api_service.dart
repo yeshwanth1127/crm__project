@@ -53,20 +53,58 @@ class ApiService {
     }
   }
   static Future<Map<String, dynamic>> fetchDashboardStats(int companyId, String range) async {
-    final response = await http.get(
-  Uri.parse('https://www.orbitco.in/api/sales/analytics/overview/?company_id=$companyId&range=$range')
-);
-    if (response.statusCode != 200) throw Exception('Failed to load dashboard stats');
-    return json.decode(response.body);
+    try {
+      final response = await http.get(
+        Uri.parse('https://orbitco.in/api/sales/analytics/overview/?company_id=$companyId&range=$range')
+      );
+      
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('❌ Dashboard stats API error: ${response.statusCode} - ${response.body}');
+        // Return mock data for now to prevent infinite loading
+        return {
+          "total_customers": 0,
+          "leads": 0,
+          "clients": 0,
+          "interactions": 0,
+          "pending_tasks": 0,
+          "upcoming_followups": 0
+        };
+      }
+    } catch (e) {
+      print('❌ Dashboard stats network error: $e');
+      // Return mock data to prevent infinite loading
+      return {
+        "total_customers": 0,
+        "leads": 0,
+        "clients": 0,
+        "interactions": 0,
+        "pending_tasks": 0,
+        "upcoming_followups": 0
+      };
+    }
   }
 
   static Future<List<String>> fetchSelectedFeatures(int companyId) async {
-final response = await http.get(
-  Uri.parse('https://www.orbitco.in/api/sales/get-features?company_id=$companyId')
-);
-    if (response.statusCode != 200) throw Exception('Failed to load features');
-    final data = json.decode(response.body);
-    return List<String>.from(data['selected_features']);
+    try {
+      final response = await http.get(
+        Uri.parse('https://orbitco.in/api/subscription/company/$companyId/features')
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return List<String>.from(data['features'] ?? []);
+      } else {
+        print('❌ Features API error: ${response.statusCode} - ${response.body}');
+        // Return core features as fallback
+        return ['contact_management', 'lead_management', 'task_tracking', 'basic_dashboard'];
+      }
+    } catch (e) {
+      print('❌ Features network error: $e');
+      // Return core features as fallback
+      return ['contact_management', 'lead_management', 'task_tracking', 'basic_dashboard'];
+    }
   }
 
   static Future<void> saveFeatures(int companyId, List<String> features) async {

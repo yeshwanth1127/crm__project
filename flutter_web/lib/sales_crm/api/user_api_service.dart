@@ -67,6 +67,26 @@ class UserApiService {
     throw Exception('Failed to delete user: ${response.body}');
   }
 
+  // ✅ Update Subscription User Count
+  static Future<void> updateSubscriptionUserCount(int companyId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/update-user-count/$companyId'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        print('✅ Subscription user count updated successfully');
+      } else {
+        print('⚠️ Warning: Could not update subscription user count: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('⚠️ Warning: Could not update subscription user count: $e');
+    }
+  }
+
   // ✅ Change Role
   static Future<void> changeUserRole(int userId, String newRole) async {
     final response = await http.patch(

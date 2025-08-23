@@ -150,12 +150,18 @@ def get_company_features(company_id: int, db: Session = Depends(get_db)):
         models.CompanySubscription.status == "active"
     ).first()
     
+    # Count actual users in the database for this company
+    actual_user_count = db.query(models.User).filter(models.User.company_id == company_id).count()
+    
     if not subscription:
         # Return core features only
         core_features = db.query(models.PlanFeature).filter(models.PlanFeature.is_core == True).all()
         return {
             "features": [feature.feature_key for feature in core_features],
-            "subscription_status": "no_subscription"
+            "subscription_status": "no_subscription",
+            "plan_name": "Launch Plan",
+            "user_limit": 3,
+            "current_users": actual_user_count
         }
     
     # Get plan features
@@ -166,11 +172,30 @@ def get_company_features(company_id: int, db: Session = Depends(get_db)):
         "subscription_status": subscription.status,
         "plan_name": plan.name,
         "user_limit": subscription.max_users,
-        "current_users": subscription.current_users
+        "current_users": actual_user_count
     }
 
 
 # ===================== UTILITY ENDPOINTS =====================
+
+@router.post("/update-user-count/{company_id}")
+def update_user_count(company_id: int, db: Session = Depends(get_db)):
+    """Update the user count for a company's subscription"""
+    # Count actual users in the database for this company
+    actual_user_count = db.query(models.User).filter(models.User.company_id == company_id).count()
+    
+    # Update the subscription if it exists
+    subscription = db.query(models.CompanySubscription).filter(
+        models.CompanySubscription.company_id == company_id,
+        models.CompanySubscription.status == "active"
+    ).first()
+    
+    if subscription:
+        subscription.current_users = actual_user_count
+        db.commit()
+        print(f"Updated subscription user count for company {company_id}: {actual_user_count}")
+    
+    return {"current_users": actual_user_count}
 
 @router.post("/initialize-plans")
 def initialize_default_plans(db: Session = Depends(get_db)):

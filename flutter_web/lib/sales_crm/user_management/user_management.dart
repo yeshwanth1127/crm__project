@@ -223,8 +223,20 @@ Widget _buildAuditLogTile(dynamic log) {
     };
     try {
       await UserApiService.createUser(userData);
-      fetchUsers();
+      
+      // Refresh users list
+      await fetchUsers();
+      
+      // Update the FeatureFilterService user count
+      final updatedUserCount = userList.length;
+      FeatureFilterService.updateUserCount(updatedUserCount);
+      
+      // Refresh features to get updated user count from API
+      await FeatureFilterService.initializeFeatures();
+      
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User created')));
+      
+      // User count updated successfully
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to create user')));
     }
@@ -392,8 +404,20 @@ Widget _buildAuditLogTile(dynamic log) {
     );
     if (confirm) {
       await UserApiService.deleteUser(userId);
-      fetchUsers();
+      
+      // Refresh users list
+      await fetchUsers();
+      
+      // Update the FeatureFilterService user count
+      final updatedUserCount = userList.length;
+      FeatureFilterService.updateUserCount(updatedUserCount);
+      
+      // Refresh features to get updated user count from API
+      await FeatureFilterService.initializeFeatures();
+      
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted')));
+      
+      // User count updated successfully
     }
   }
 

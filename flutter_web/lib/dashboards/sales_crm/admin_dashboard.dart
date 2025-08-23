@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_web/sales_crm/api/user_api_service.dart';
 import 'package:flutter_web/sales_crm/interactions/interactions_home_screen.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_web/sales_crm/tasks/task_type_selection_screen.dart';
 import 'package:flutter_web/sales_crm/user_management/user_management.dart';
 import 'package:flutter_web/services/api_service.dart';
 import 'package:flutter_web/services/feature_filter_service.dart';
+import 'package:flutter_web/services/api_test_service.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,7 +33,19 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
   @override
   void initState() {
     super.initState();
+    print('🚀 Dashboard initialized for company ID: ${widget.companyId}');
     _initializeFeatures();
+    // Also fetch dashboard data to prevent infinite loading
+    fetchDashboardData();
+    
+    // Set up periodic refresh of user count every 30 seconds
+    Timer.periodic(Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _refreshUserCount();
+      } else {
+        timer.cancel();
+      }
+    });
   }
 
   Future<void> _initializeFeatures() async {
@@ -64,15 +78,126 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
       isLoading = true;
       isError = false;
     });
+    
     try {
-      stats = await ApiService.fetchDashboardStats(widget.companyId, dateRange);
-      features = await ApiService.fetchSelectedFeatures(widget.companyId);
-      isLoading = false;
+      print('🔄 Fetching dashboard data for company: ${widget.companyId}');
+      print('🌐 Using API endpoint: https://orbitco.in/api');
+      
+      // Fetch dashboard stats
+      final dashboardStats = await ApiService.fetchDashboardStats(widget.companyId, dateRange);
+      print('📊 Dashboard stats received: $dashboardStats');
+      
+      // Fetch features
+      final selectedFeatures = await ApiService.fetchSelectedFeatures(widget.companyId);
+      print('🔧 Features received: $selectedFeatures');
+      
+      setState(() {
+        stats = dashboardStats;
+        features = selectedFeatures;
+        isLoading = false;
+        isError = false;
+      });
+      
+      print('✅ Dashboard data loaded successfully');
+      
     } catch (e) {
-      isLoading = false;
-      isError = true;
+      print('❌ Error fetching dashboard data: $e');
+      print('🔍 Error details: ${e.toString()}');
+      
+      // Set error state but don't show error UI immediately
+      setState(() {
+        isLoading = false;
+        isError = true;
+      });
+      
+      // Try to recover with fallback data
+      await _loadFallbackData();
     }
-    setState(() {});
+  }
+
+  Future<void> _loadFallbackData() async {
+    print('🔄 Loading fallback data...');
+    
+    try {
+      // Try to get features from FeatureFilterService as fallback
+      await FeatureFilterService.initializeFeatures();
+      
+      setState(() {
+        stats = {
+          "total_customers": 0,
+          "leads": 0,
+          "clients": 0,
+          "interactions": 0,
+          "pending_tasks": 0,
+          "upcoming_followups": 0
+        };
+        features = FeatureFilterService.getAvailableFeatures();
+        isLoading = false;
+        isError = false;
+      });
+      
+      print('✅ Fallback data loaded successfully');
+    } catch (e) {
+      print('❌ Error loading fallback data: $e');
+      setState(() {
+        isLoading = false;
+        isError = true;
+      });
+    }
+  }
+
+  // Refresh user count and features when returning from user management
+  Future<void> _refreshUserCount() async {
+    try {
+      print('🔄 Refreshing user count and features...');
+      await FeatureFilterService.forceRefreshUserCount();
+      if (mounted) {
+        setState(() {});
+      }
+      print('✅ User count refreshed successfully');
+    } catch (e) {
+      print('❌ Error refreshing user count: $e');
+    }
+  }
+
+  Future<void> _testApiEndpoints() async {
+    print('🧪 Testing API endpoints for company ID: ${widget.companyId}');
+    
+    try {
+      // Test root endpoint
+      final rootTest = await ApiTestService.testRootEndpoint();
+      print('🌐 Root endpoint test result: $rootTest');
+      
+      // Test analytics endpoint
+      final analyticsTest = await ApiTestService.testAnalyticsEndpoint(widget.companyId);
+      print('📊 Analytics endpoint test result: $analyticsTest');
+      
+      // Test subscription endpoint
+      final subscriptionTest = await ApiTestService.testSubscriptionEndpoint(widget.companyId);
+      print('🔧 Subscription endpoint test result: $subscriptionTest');
+      
+      // Show results in a snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('API Test Complete - Check console for details'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      print('❌ API test error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('API Test Failed: $e'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -149,7 +274,7 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            FeatureFilterService.getPlanInfo()['plan_name'] ?? 'No Plan',
+                            FeatureFilterService.getPlanInfo()['plan_name'] ?? 'Launch Plan',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -197,27 +322,157 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                             fontSize: 14,
                           ),
                         ),
+                        SizedBox(height: 4),
+                        // Status indicator
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isLoading 
+                                ? Colors.blue.withOpacity(0.8)
+                                : isError 
+                                    ? Colors.red.withOpacity(0.8)
+                                    : Colors.green.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isLoading 
+                                ? 'Loading...'
+                                : isError 
+                                    ? 'API Error'
+                                    : 'Connected',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 8),
-                        // Debug Refresh Button
-                        GestureDetector(
-                          onTap: () async {
-                            print('🔄 Manual refresh requested');
-                            await _initializeFeatures();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.8),
-                              borderRadius: BorderRadius.circular(8),
+                        // Debug Panel
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
                             ),
-                            child: const Text(
-                              '🔄 Refresh Features',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Debug Info',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Company ID: ${widget.companyId}',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 9,
+                                ),
+                              ),
+                              Text(
+                                'API: orbitco.in',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 9,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () async {
+                                      print('🔄 Manual refresh requested');
+                                      await _initializeFeatures();
+                                      await _refreshUserCount();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withOpacity(0.8),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        '🔄',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      print('🔍 Testing API connection...');
+                                      await fetchDashboardData();
+                                      await _refreshUserCount();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withOpacity(0.8),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        '🔍',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      print('🧪 Testing API endpoints...');
+                                      await _testApiEndpoints();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.purple.withOpacity(0.8),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        '🧪',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      print('👥 Refreshing user count...');
+                                      await _refreshUserCount();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withOpacity(0.8),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text(
+                                        '👥',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -344,7 +599,8 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                             } else {
                               return Center(
                                   child: Text("No customer found",
-                                      style: TextStyle(color: Colors.white)));
+                                      style: TextStyle(
+                                          color: Colors.white)));
                             }
                           },
                         ),
@@ -451,11 +707,10 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
     ];
 
     // Filter menu items based on available features
-    // TEMPORARILY DISABLED - Show all features
-    final availablePages = allPages; // FeatureFilterService.filterDashboardMenu(allPages);
+    final availablePages = FeatureFilterService.filterDashboardMenu(allPages);
     
-    print('🔍 TEMPORARILY SHOWING ALL FEATURES (filtering disabled)');
-    print('📋 All menu items: ${allPages.map((item) => item['title']).toList()}');
+    print('🔍 Filtering dashboard menu based on subscription plan');
+    print('📋 Available menu items: ${availablePages.map((item) => item['title']).toList()}');
 
     return availablePages.map((item) {
       final route = item['route'] as String? ?? '';
@@ -469,12 +724,14 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
-            onTap: () {
+            onTap: () async {
               if (title == 'User Management') {
-                Navigator.push(
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => UserManagementScreen()),
                 );
+                // Refresh user count when returning from user management
+                await _refreshUserCount();
               } else {
                 setState(() {
                   selectedPage = route;
@@ -543,21 +800,76 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Error loading dashboard",
-                        style: TextStyle(color: Colors.white)),
-                    SizedBox(height: 10),
-                    ElevatedButton(
-                      onPressed: fetchDashboardData,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Color(0xFF2193b0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
+                    Icon(
+                      Icons.error_outline,
+                      color: Colors.white,
+                      size: 64,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      "Dashboard Loading Issue",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
                       ),
-                      child: Text("Retry"),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      "Unable to connect to orbitco.in API",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      "Using fallback data from local configuration",
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 14,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () async {
+                            await fetchDashboardData();
+                            await _refreshUserCount();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Color(0xFF2193b0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                          child: Text("Retry API"),
+                        ),
+                        SizedBox(width: 16),
+                        ElevatedButton(
+                          onPressed: () async {
+                            await _loadFallbackData();
+                            await _refreshUserCount();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                          ),
+                          child: Text("Use Fallback"),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -566,6 +878,7 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                 controller: _refreshController,
                 onRefresh: () async {
                   await fetchDashboardData();
+                  await _refreshUserCount();
                   _refreshController.refreshCompleted();
                 },
                 child: SingleChildScrollView(
@@ -612,11 +925,11 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                 borderRadius: BorderRadius.circular(30)),
             padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
-          onPressed: () {
+          onPressed: () async {
             setState(() {
               dateRange = filter;
-              fetchDashboardData();
             });
+            await fetchDashboardData();
           },
           child: Text(
             filter.toUpperCase(),
@@ -631,14 +944,14 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
   }
 
   Widget _buildStatsCards() {
-  final statsList = [
-    {"title": "Customers", "value": (stats["total_customers"] ?? 0).toString()},
-    {"title": "Leads", "value": (stats["leads"] ?? 0).toString()},
-    {"title": "Clients", "value": (stats["clients"] ?? 0).toString()},
-    {"title": "Interactions", "value": (stats["interactions"] ?? 0).toString()},
-    {"title": "Tasks", "value": (stats["pending_tasks"] ?? 0).toString()},
-    {"title": "Followups", "value": (stats["upcoming_followups"] ?? 0).toString()},
-  ];
+    final statsList = [
+      {"title": "Customers", "value": (stats["total_customers"] ?? 0).toString()},
+      {"title": "Leads", "value": (stats["leads"] ?? 0).toString()},
+      {"title": "Clients", "value": (stats["clients"] ?? 0).toString()},
+      {"title": "Interactions", "value": (stats["interactions"] ?? 0).toString()},
+      {"title": "Tasks", "value": (stats["pending_tasks"] ?? 0).toString()},
+      {"title": "Followups", "value": (stats["upcoming_followups"] ?? 0).toString()},
+    ];
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
@@ -703,98 +1016,97 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
   }
 
   Widget _buildAnalyticsGraph() {
-  // Convert stats values to double explicitly
-  final spots = stats.entries.map((entry) {
-    final value = entry.value is num ? (entry.value as num).toDouble() : 0.0;
-    return FlSpot(entry.key.length.toDouble(), value);
-  }).toList();
+    // Convert stats values to double explicitly
+    final spots = stats.entries.map((entry) {
+      final value = entry.value is num ? (entry.value as num).toDouble() : 0.0;
+      return FlSpot(entry.key.length.toDouble(), value);
+    }).toList();
 
-  return Container(
-    padding: EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: Colors.white.withOpacity(0.2),
-      ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Analytics Overview",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
         ),
-        SizedBox(height: 16),
-        SizedBox(
-          height: 250,
-          child: LineChart(
-            LineChartData(
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: true,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(
-                    color: Colors.white.withOpacity(0.1),
-                    strokeWidth: 1,
-                  );
-                },
-                getDrawingVerticalLine: (value) {
-                  return FlLine(
-                    color: Colors.white.withOpacity(0.1),
-                    strokeWidth: 1,
-                  );
-                },
-              ),
-              borderData: FlBorderData(
-                show: true,
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              titlesData: FlTitlesData(
-                show: true,
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(showTitles: true),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(showTitles: true),
-                ),
-                rightTitles: AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                topTitles: AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: spots,
-                  isCurved: true,
-                  color: Colors.white,
-                  barWidth: 3,
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Colors.white.withOpacity(0.1),
-                  ),
-                  dotData: FlDotData(show: false),
-                ),
-              ],
-              minX: 0,
-              maxX: spots.isNotEmpty ? spots.last.x : 0,
-              minY: 0,
-              maxY: spots.isNotEmpty ? spots.map((s) => s.y).reduce((a, b) => a > b ? a : b) * 1.1 : 0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Analytics Overview",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
+          SizedBox(height: 16),
+          SizedBox(
+            height: 250,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: true,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Colors.white.withOpacity(0.1),
+                      strokeWidth: 1,
+                    );
+                  },
+                  getDrawingVerticalLine: (value) {
+                    return FlLine(
+                      color: Colors.white.withOpacity(0.1),
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: true),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: true),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: true,
+                    color: Colors.white,
+                    barWidth: 3,
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Colors.white.withOpacity(0.1),
+                    ),
+                    dotData: FlDotData(show: false),
+                  ),
+                ],
+                minX: 0,
+                maxX: spots.isNotEmpty ? spots.last.x : 0,
+                minY: 0,
+                maxY: spots.isNotEmpty ? spots.map((s) => s.y).reduce((a, b) => a > b ? a : b) * 1.1 : 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

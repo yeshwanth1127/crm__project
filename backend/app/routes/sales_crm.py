@@ -394,6 +394,13 @@ def create_user(
     db.commit()
     db.refresh(new_user)
 
+    # Update subscription user count
+    try:
+        from ..routes.subscription import update_user_count
+        update_user_count(user_data.company_id, db)
+    except Exception as e:
+        print(f"Warning: Could not update subscription user count: {e}")
+
     return new_user
 
 
@@ -419,6 +426,13 @@ def delete_user(
     before = user_del.__dict__.copy()
     db.delete(user_del)
     db.commit()
+
+    # Update subscription user count
+    try:
+        from ..routes.subscription import update_user_count
+        update_user_count(user.company_id, db)
+    except Exception as e:
+        print(f"Warning: Could not update subscription user count: {e}")
 
     log_audit(db, user.id, user.company_id, user.role, "Deleted User", 
               "user", user_id, before, None)
