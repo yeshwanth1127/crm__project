@@ -142,6 +142,38 @@ class _SalesAdminDashboardState extends State<SalesAdminDashboard> {
                           ),
                         ),
                         const SizedBox(height: 8),
+                        // User Limit Display with Plan-Specific Limits
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                '${FeatureFilterService.getUserManagementInfo()['current_users'] ?? 0}/${FeatureFilterService.getUserManagementInfo()['user_limit'] ?? 3} Users',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              if (FeatureFilterService.getPlanAdditionalUserPrice(FeatureFilterService.getPlanInfo()['plan_name'] ?? '') != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  '+₹${FeatureFilterService.getPlanAdditionalUserPrice(FeatureFilterService.getPlanInfo()['plan_name'] ?? '')}/user',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           "Sales CRM",
                           style: TextStyle(

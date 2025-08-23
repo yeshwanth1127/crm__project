@@ -8,130 +8,174 @@ class FeatureFilterService {
   static int _userLimit = 0;
   static int _currentUsers = 0;
 
-  // Plan-specific feature mappings
-  static const Map<String, List<String>> _planFeatures = {
-    'Launch': [
-      'contact_management',
-      'lead_management',
-      'task_tracking',
-      'basic_dashboard',
-      'limited_custom_fields',
-      'mobile_access',
-      'email_support',
-      'ssl_security',
-      'vps_hosting'
-    ],
-    'Accelerate': [
-      'contact_management',
-      'lead_management',
-      'task_tracking',
-      'basic_dashboard',
-      'limited_custom_fields',
-      'mobile_access',
-      'email_support',
-      'ssl_security',
-      'vps_hosting',
-      'lead_pipeline',
-      'visual_sales_pipeline',
-      'email_sms_notifications',
-      'custom_dashboards',
-      'customer_segments',
-      'custom_fields',
-      'support_tickets',
-      'role_based_access',
-      'customer_notes',
-      'email_sms_integration',
-      'team_chat',
-      'auto_backups'
-    ],
-    'Scale': [
-      'contact_management',
-      'lead_management',
-      'task_tracking',
-      'basic_dashboard',
-      'limited_custom_fields',
-      'mobile_access',
-      'email_support',
-      'ssl_security',
-      'vps_hosting',
-      'lead_pipeline',
-      'visual_sales_pipeline',
-      'email_sms_notifications',
-      'custom_dashboards',
-      'customer_segments',
-      'custom_fields',
-      'support_tickets',
-      'role_based_access',
-      'customer_notes',
-      'email_sms_integration',
-      'team_chat',
-      'auto_backups',
-      'campaign_management',
-      'custom_lead_stages',
-      'bulk_messaging',
-      'advanced_analytics',
-      'file_uploads',
-      'conversation_logs',
-      'role_management',
-      'user_management',
-      'activity_timeline',
-      'notification_center',
-      'custom_domain'
-    ],
-    'Essentials': [
-      'contact_management',
-      'lead_management',
-      'task_tracking',
-      'follow_up_reminders',
-      'activity_logs',
-      'admin_salesman_roles',
-      'custom_branding',
-      'data_ownership'
-    ],
-    'Pro Deploy': [
-      'contact_management',
-      'lead_management',
-      'task_tracking',
-      'follow_up_reminders',
-      'activity_logs',
-      'admin_salesman_roles',
-      'custom_branding',
-      'data_ownership',
-      'role_based_access',
-      'support_module',
-      'custom_fields',
-      'file_uploads',
-      'enhanced_analytics',
-      'sms_email_notifications',
-      'training_videos'
-    ],
-    'Enterprise': [
-      'contact_management',
-      'lead_management',
-      'task_tracking',
-      'follow_up_reminders',
-      'activity_logs',
-      'admin_salesman_roles',
-      'custom_branding',
-      'data_ownership',
-      'role_based_access',
-      'support_module',
-      'custom_fields',
-      'file_uploads',
-      'enhanced_analytics',
-      'sms_email_notifications',
-      'training_videos',
-      'white_labeling',
-      'rest_api',
-      'campaign_management',
-      'crm_reports',
-      'role_audit',
-      'data_segmentation',
-      'custom_workflows',
-      'lifetime_license',
-      'dedicated_manager'
-    ]
+  // Plan-specific feature mappings with user limits
+  static const Map<String, Map<String, dynamic>> _planDetails = {
+    'Launch': {
+      'features': [
+        'contact_management',
+        'lead_management',
+        'task_tracking',
+        'basic_dashboard',
+        'limited_custom_fields',
+        'mobile_access',
+        'email_support',
+        'ssl_security',
+        'vps_hosting',
+        'user_management'
+      ],
+      'user_limit': 3,
+      'additional_user_price': 199.0
+    },
+    'Accelerate': {
+      'features': [
+        'contact_management',
+        'lead_management',
+        'task_tracking',
+        'basic_dashboard',
+        'limited_custom_fields',
+        'mobile_access',
+        'email_support',
+        'ssl_security',
+        'vps_hosting',
+        'lead_pipeline',
+        'visual_sales_pipeline',
+        'email_sms_notifications',
+        'custom_dashboards',
+        'customer_segments',
+        'custom_fields',
+        'support_tickets',
+        'role_based_access',
+        'customer_notes',
+        'email_sms_integration',
+        'team_chat',
+        'auto_backups',
+        'user_management'
+      ],
+      'user_limit': 12,
+      'additional_user_price': 199.0
+    },
+    'Scale': {
+      'features': [
+        'contact_management',
+        'lead_management',
+        'task_tracking',
+        'basic_dashboard',
+        'limited_custom_fields',
+        'mobile_access',
+        'email_support',
+        'ssl_security',
+        'vps_hosting',
+        'lead_pipeline',
+        'visual_sales_pipeline',
+        'email_sms_notifications',
+        'custom_dashboards',
+        'customer_segments',
+        'custom_fields',
+        'support_tickets',
+        'role_based_access',
+        'customer_notes',
+        'email_sms_integration',
+        'team_chat',
+        'auto_backups',
+        'campaign_management',
+        'custom_lead_stages',
+        'bulk_messaging',
+        'advanced_analytics',
+        'file_uploads',
+        'conversation_logs',
+        'role_management',
+        'user_management',
+        'activity_timeline',
+        'notification_center',
+        'custom_domain'
+      ],
+      'user_limit': 30,
+      'additional_user_price': 149.0
+    },
+    'Essentials': {
+      'features': [
+        'contact_management',
+        'lead_management',
+        'task_tracking',
+        'follow_up_reminders',
+        'activity_logs',
+        'admin_salesman_roles',
+        'custom_branding',
+        'data_ownership',
+        'user_management'
+      ],
+      'user_limit': 3,
+      'additional_user_price': null
+    },
+    'Pro Deploy': {
+      'features': [
+        'contact_management',
+        'lead_management',
+        'task_tracking',
+        'follow_up_reminders',
+        'activity_logs',
+        'admin_salesman_roles',
+        'custom_branding',
+        'data_ownership',
+        'role_based_access',
+        'support_module',
+        'custom_fields',
+        'file_uploads',
+        'enhanced_analytics',
+        'sms_email_notifications',
+        'training_videos',
+        'user_management'
+      ],
+      'user_limit': 25,
+      'additional_user_price': null
+    },
+    'Enterprise': {
+      'features': [
+        'contact_management',
+        'lead_management',
+        'task_tracking',
+        'follow_up_reminders',
+        'activity_logs',
+        'admin_salesman_roles',
+        'custom_branding',
+        'data_ownership',
+        'role_based_access',
+        'support_module',
+        'custom_fields',
+        'file_uploads',
+        'enhanced_analytics',
+        'sms_email_notifications',
+        'training_videos',
+        'white_labeling',
+        'rest_api',
+        'campaign_management',
+        'crm_reports',
+        'role_audit',
+        'data_segmentation',
+        'custom_workflows',
+        'lifetime_license',
+        'dedicated_manager',
+        'user_management'
+      ],
+      'user_limit': 50,
+      'additional_user_price': null
+    }
   };
+
+  // Get features for a specific plan
+  static List<String> getPlanFeatures(String planName) {
+    return _planDetails[planName]?['features'] ?? _getCoreFeatures();
+  }
+
+  // Get user limit for a specific plan
+  static int getPlanUserLimit(String planName) {
+    return _planDetails[planName]?['user_limit'] ?? 3;
+  }
+
+  // Get additional user price for a specific plan
+  static double? getPlanAdditionalUserPrice(String planName) {
+    return _planDetails[planName]?['additional_user_price'];
+  }
 
   // Initialize features for the current user
   static Future<void> initializeFeatures() async {
@@ -174,7 +218,7 @@ class FeatureFilterService {
         
         // If no features from API, use plan-based features
         if (_availableFeatures.isEmpty && _currentPlan != 'No Plan') {
-          _availableFeatures = _planFeatures[_currentPlan] ?? _getCoreFeatures();
+          _availableFeatures = getPlanFeatures(_currentPlan);
         }
         
         print('Features initialized successfully: ${_availableFeatures.length} features for plan: $_currentPlan');
@@ -199,19 +243,22 @@ class FeatureFilterService {
       final prefs = await SharedPreferences.getInstance();
       final planName = prefs.getString('selected_plan_name');
       
-      if (planName != null && _planFeatures.containsKey(planName)) {
-        _availableFeatures = _planFeatures[planName]!;
+      if (planName != null && _planDetails.containsKey(planName)) {
+        _availableFeatures = getPlanFeatures(planName);
         _currentPlan = planName;
-        print('Features initialized from local storage for plan: $planName');
+        _userLimit = getPlanUserLimit(planName);
+        print('Features initialized from local storage for plan: $planName with user limit: $_userLimit');
       } else {
         _availableFeatures = _getCoreFeatures();
         _currentPlan = 'No Plan';
-        print('No plan found in local storage, using core features');
+        _userLimit = 3; // Default minimum limit
+        print('No plan found in local storage, using core features with default user limit: $_userLimit');
       }
     } catch (e) {
       print('Error initializing from local storage: $e');
       _availableFeatures = _getCoreFeatures();
       _currentPlan = 'No Plan';
+      _userLimit = 3; // Default minimum limit
     }
   }
 
@@ -274,6 +321,33 @@ class FeatureFilterService {
            hasFeature('marketing_automation');
   }
 
+  // Check if user can create more users
+  static bool canCreateMoreUsers() {
+    return _currentUsers < _userLimit;
+  }
+
+  // Get remaining user slots
+  static int getRemainingUserSlots() {
+    return _userLimit - _currentUsers;
+  }
+
+  // Check if user management is available with limits
+  static bool canAccessUserManagement() {
+    return hasFeature('user_management');
+  }
+
+  // Get user management info
+  static Map<String, dynamic> getUserManagementInfo() {
+    return {
+      'can_access': canAccessUserManagement(),
+      'current_users': _currentUsers,
+      'user_limit': _userLimit,
+      'can_create_more': canCreateMoreUsers(),
+      'remaining_slots': getRemainingUserSlots(),
+      'plan_name': _currentPlan,
+    };
+  }
+
   // Get feature-based dashboard title
   static String getDashboardTitle() {
     if (canAccessAdvancedFeatures()) {
@@ -288,7 +362,7 @@ class FeatureFilterService {
   // Check if feature is available for current plan
   static bool isFeatureAvailableForPlan(String featureKey) {
     if (_currentPlan == 'No Plan') return false;
-    final planFeatures = _planFeatures[_currentPlan];
+    final planFeatures = getPlanFeatures(_currentPlan);
     return planFeatures?.contains(featureKey) ?? false;
   }
 

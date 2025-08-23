@@ -12,7 +12,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import (
     CustomerCustomField, CustomerCustomValue, TaskAssignment, Company,
-    Customer, Interaction, Task, FollowUp, User, AuditLog, CustomerLifecycleConfig, Conversation
+    Customer, Interaction, Task, FollowUp, User, AuditLog, CustomerLifecycleConfig, Conversation, CompanySubscription
 )
 from ..schemas import (
     CustomFieldCreateSchema, CustomFieldSchema, CustomValueCreateSchema, CustomerCustomValueInput,
@@ -350,9 +350,36 @@ def create_user(
     user_data: UserCreateSchema, 
     db: Session = Depends(get_db)
 ):
+    # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="User with this email already exists")
+    
+    # Check user limit based on subscription plan
+    company = db.query(Company).filter(Company.id == user_data.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    # Get current user count for the company
+    current_user_count = db.query(User).filter(User.company_id == user_data.company_id).count()
+    
+    # Check subscription limits
+    if company.subscription_id:
+        subscription = db.query(CompanySubscription).filter(CompanySubscription.id == company.subscription_id).first()
+        if subscription:
+            if current_user_count >= subscription.max_users:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"User limit reached. Maximum {subscription.max_users} users allowed for your {subscription.plan.name} plan."
+                )
+    else:
+        # For companies without subscription, check if they have a plan selected during onboarding
+        # This handles cases where companies are in the process of getting a subscription
+        if current_user_count >= 3:  # Default minimum limit
+            raise HTTPException(
+                status_code=400, 
+                detail="User limit reached. Please select a subscription plan to add more users."
+            )
     
     new_user = User(
         full_name=user_data.full_name,

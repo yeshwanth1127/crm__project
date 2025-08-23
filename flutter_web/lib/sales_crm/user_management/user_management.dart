@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web/sales_crm/api/user_api_service.dart';
+import 'package:flutter_web/services/feature_filter_service.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -423,9 +424,88 @@ Widget _buildAuditLogTile(dynamic log) {
                 children: [
                   const SizedBox(height: 40),
                   const Text("User Management", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  // User Limit Display
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.people,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${FeatureFilterService.getUserManagementInfo()['current_users'] ?? 0}/${FeatureFilterService.getUserManagementInfo()['user_limit'] ?? 3} Users',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (!FeatureFilterService.canCreateMoreUsers()) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.8),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Limit Reached',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        // Show additional user pricing if available
+                        if (FeatureFilterService.getPlanAdditionalUserPrice(FeatureFilterService.getPlanInfo()['plan_name'] ?? '') != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Additional users: ₹${FeatureFilterService.getPlanAdditionalUserPrice(FeatureFilterService.getPlanInfo()['plan_name'] ?? '')}/user',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   _navButton('User List'),
-                  _navButton('Add New User'),
+                  // Disable Add New User button when limit is reached
+                  ListTile(
+                    selected: selectedUserPage == 'Add New User',
+                    selectedTileColor: Colors.white.withOpacity(0.2),
+                    title: Text(
+                      'Add New User',
+                      style: TextStyle(
+                        color: FeatureFilterService.canCreateMoreUsers() 
+                          ? Colors.white 
+                          : Colors.white.withOpacity(0.5),
+                        fontWeight: selectedUserPage == 'Add New User' ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    onTap: FeatureFilterService.canCreateMoreUsers() 
+                      ? () => setState(() => selectedUserPage = 'Add New User')
+                      : null,
+                  ),
                   _navButton('Role Management'),
                   _navButton('Account Status'),
                   _navButton('Audit Logs'),
