@@ -19,8 +19,22 @@ from ..schemas import (
     CustomerUpdate, UserCreateSchema, UserResponseSchema, LifecycleConfigCreate,
     LifecycleConfigResponse, ConversationCreate, ConversationResponse
 )
+
+# ✅ Add password hashing
+from passlib.context import CryptContext
+
 router = APIRouter()
 
+# ✅ Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt"""
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash"""
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 @router.post("/customers/")
@@ -385,7 +399,7 @@ def create_user(
         full_name=user_data.full_name,
         email=user_data.email,
         phone=user_data.phone,
-        password=user_data.password,
+        password=hash_password(user_data.password),
         role=user_data.role,
         company_id=user_data.company_id
     )
