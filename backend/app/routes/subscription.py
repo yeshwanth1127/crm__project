@@ -151,7 +151,7 @@ def get_company_features(company_id: int, db: Session = Depends(get_db)):
     ).first()
     
     # Count actual users in the database for this company
-    actual_user_count = db.query(models.users).filter(models.users.company_id == company_id).count()
+    actual_user_count = db.query(models.User).filter(models.User.company_id == company_id).count()
     
     if not subscription:
         # Return core features only
@@ -182,7 +182,7 @@ def get_company_features(company_id: int, db: Session = Depends(get_db)):
 def update_user_count(company_id: int, db: Session = Depends(get_db)):
     """Update the user count for a company's subscription"""
     # Count actual users in the database for this company
-    actual_user_count = db.query(models.users).filter(models.users.company_id == company_id).count()
+    actual_user_count = db.query(models.User).filter(models.User.company_id == company_id).count()
     
     # Update the subscription if it exists
     subscription = db.query(models.CompanySubscription).filter(
