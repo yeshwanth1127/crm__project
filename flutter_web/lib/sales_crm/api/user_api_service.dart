@@ -46,10 +46,23 @@ class UserApiService {
   static Future<dynamic> createUser(Map<String, dynamic> userData) async {
   final headers = await _getAuthHeaders();
   
+  // Remove Content-Type header for form data
+  headers.remove('Content-Type');
+  
+  // Convert to form data
+  final formData = {
+    'full_name': userData['full_name'],
+    'email': userData['email'],
+    'phone': userData['phone'],
+    'password': userData['password'],
+    'role': userData['role'],
+    'company_id': userData['company_id'].toString(),
+  };
+  
   final response = await http.post(
     Uri.parse('$baseUrl/create-user'),
     headers: headers,
-    body: jsonEncode(userData),
+    body: formData,
   );
 
   if (response.statusCode == 201) {

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form, status
+from fastapi import APIRouter, Depends, HTTPException, Form, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -361,61 +361,83 @@ def update_features(company_id: int, updated_features: List[str], db: Session = 
 
 @router.post("/create-user", status_code=status.HTTP_201_CREATED)
 def create_user(
-    user_data: UserCreateSchema, 
+    full_name: str = Form(...),
+    email: str = Form(...),
+    phone: str = Form(...),
+    password: str = Form(...),
+    role: str = Form(...),
+    company_id: int = Form(...),
     db: Session = Depends(get_db)
 ):
-    # Check if user already exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User with this email already exists")
-    
-    # Check user limit based on subscription plan
-    company = db.query(Company).filter(Company.id == user_data.company_id).first()
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
-    
-    # Get current user count for the company
-    current_user_count = db.query(User).filter(User.company_id == user_data.company_id).count()
-    
-    # Check subscription limits
-    if company.subscription_id:
-        subscription = db.query(CompanySubscription).filter(CompanySubscription.id == company.subscription_id).first()
-        if subscription:
-            if current_user_count >= subscription.max_users:
+    try:
+        print(f"🔍 Creating user: full_name={full_name}, email={email}, phone={phone}, role={role}, company_id={company_id}")
+        
+        # Check if user already exists
+        existing_user = db.query(User).filter(User.email == email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="User with this email already exists")
+        
+        # Check user limit based on subscription plan
+        company = db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Company not found")
+        
+        # Get current user count for the company
+        current_user_count = db.query(User).filter(User.company_id == company_id).count()
+        print(f"📊 Current user count for company {company_id}: {current_user_count}")
+        
+        # Check subscription limits
+        if company.subscription_id:
+            subscription = db.query(CompanySubscription).filter(CompanySubscription.id == company.subscription_id).first()
+            if subscription:
+                if current_user_count >= subscription.max_users:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"User limit reached. Maximum {subscription.max_users} users allowed for your {subscription.plan.name} plan."
+                    )
+        else:
+            # For companies without subscription, check if they have a plan selected during onboarding
+            # This handles cases where companies are in the process of getting a subscription
+            if current_user_count >= 3:  # Default minimum limit
                 raise HTTPException(
                     status_code=400, 
-                    detail=f"User limit reached. Maximum {subscription.max_users} users allowed for your {subscription.plan.name} plan."
+                    detail="User limit reached. Please select a subscription plan to add more users."
                 )
-    else:
-        # For companies without subscription, check if they have a plan selected during onboarding
-        # This handles cases where companies are in the process of getting a subscription
-        if current_user_count >= 3:  # Default minimum limit
-            raise HTTPException(
-                status_code=400, 
-                detail="User limit reached. Please select a subscription plan to add more users."
-            )
-    
-    new_user = User(
-        full_name=user_data.full_name,
-        email=user_data.email,
-        phone=user_data.phone,
-        password=hash_password(user_data.password),
-        role=user_data.role,
-        company_id=user_data.company_id
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+        
+        # Hash password
+        hashed_password = hash_password(password)
+        print(f"🔐 Password hashed successfully")
+        
+        new_user = User(
+            full_name=full_name,
+            email=email,
+            phone=phone,
+            password=hashed_password,
+            role=role,
+            company_id=company_id
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        print(f"✅ User created successfully with ID: {new_user.id}")
 
-    # Update subscription user count
-    try:
-        from ..routes.subscription import update_user_count
-        update_user_count(user_data.company_id, db)
+        # Update subscription user count
+        try:
+            from ..routes.subscription import update_user_count
+            update_user_count(company_id, db)
+            print(f"✅ Subscription user count updated")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not update subscription user count: {e}")
+
+        return new_user
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Warning: Could not update subscription user count: {e}")
-
-    return new_user
+        print(f"❌ Error creating user: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 
@@ -473,6 +495,37 @@ def delete_user(
 def delete_user_options(user_id: int):
     """Handle CORS preflight for delete user endpoint"""
     return {"message": "OK"}
+
+# Test endpoint to validate user creation schema
+@router.post("/test-create-user")
+def test_create_user_schema(user_data: UserCreateSchema):
+    """Test endpoint to validate user creation schema"""
+    return {
+        "message": "Schema validation successful",
+        "data": user_data.dict(),
+        "validation": "passed"
+    }
+
+# Debug endpoint to see raw data
+@router.post("/debug-create-user")
+async def debug_create_user(request: Request):
+    """Debug endpoint to see raw request data"""
+    try:
+        body = await request.body()
+        print(f"🔍 Raw request body: {body}")
+        
+        # Try to parse as JSON
+        try:
+            json_data = await request.json()
+            print(f"📋 Parsed JSON: {json_data}")
+            return {"message": "JSON parsed successfully", "data": json_data}
+        except Exception as e:
+            print(f"❌ JSON parsing failed: {e}")
+            return {"message": "JSON parsing failed", "raw_body": str(body), "error": str(e)}
+            
+    except Exception as e:
+        print(f"❌ Request processing failed: {e}")
+        return {"message": "Request processing failed", "error": str(e)}
 
 
 @router.get("/company-settings")
