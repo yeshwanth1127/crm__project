@@ -5,6 +5,7 @@ from datetime import date, datetime
 from ..database import get_db
 from .. import models, schemas
 from ..auth import get_current_user
+from ..models import CompanySubscription
 
 router = APIRouter(prefix="/subscription", tags=["subscription"])
 
@@ -142,8 +143,16 @@ def get_all_features(db: Session = Depends(get_db)):
 
 
 @router.get("/company/{company_id}/features")
-def get_company_features(company_id: int, db: Session = Depends(get_db)):
+def get_company_features(
+    company_id: int, 
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get features available to a company based on their subscription"""
+    # Verify the user belongs to the requested company
+    if current_user.company_id != company_id:
+        raise HTTPException(status_code=403, detail="Access denied to this company's data")
+    
     # Get company's subscription
     subscription = db.query(models.CompanySubscription).filter(
         models.CompanySubscription.company_id == company_id,
@@ -167,8 +176,15 @@ def get_company_features(company_id: int, db: Session = Depends(get_db)):
     # Get plan features
     plan = db.query(models.SubscriptionPlan).filter(models.SubscriptionPlan.id == subscription.plan_id).first()
     
+    # Parse features from JSON string
+    import json
+    try:
+        plan_features = json.loads(plan.features) if plan.features else []
+    except (json.JSONDecodeError, TypeError):
+        plan_features = []
+    
     return {
-        "features": plan.features,
+        "features": plan_features,
         "subscription_status": subscription.status,
         "plan_name": plan.name,
         "user_limit": subscription.max_users,
@@ -180,22 +196,20 @@ def get_company_features(company_id: int, db: Session = Depends(get_db)):
 
 @router.post("/update-user-count/{company_id}")
 def update_user_count(company_id: int, db: Session = Depends(get_db)):
-    """Update the user count for a company's subscription"""
-    # Count actual users in the database for this company
-    actual_user_count = db.query(models.User).filter(models.User.company_id == company_id).count()
-    
-    # Update the subscription if it exists
-    subscription = db.query(models.CompanySubscription).filter(
-        models.CompanySubscription.company_id == company_id,
-        models.CompanySubscription.status == "active"
-    ).first()
-    
-    if subscription:
-        subscription.current_users = actual_user_count
-        db.commit()
-        print(f"Updated subscription user count for company {company_id}: {actual_user_count}")
-    
-    return {"current_users": actual_user_count}
+    try:
+        # Get actual user count from User table
+        actual_user_count = db.query(models.User).filter(models.User.company_id == company_id).count()
+        
+        # Update CompanySubscription table
+        subscription = db.query(CompanySubscription).filter(CompanySubscription.company_id == company_id).first()
+        if subscription:
+            subscription.current_users = actual_user_count
+            db.commit()
+        
+        return {"message": "User count updated", "current_users": actual_user_count}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update user count: {str(e)}")
 
 @router.post("/initialize-plans")
 def initialize_default_plans(db: Session = Depends(get_db)):

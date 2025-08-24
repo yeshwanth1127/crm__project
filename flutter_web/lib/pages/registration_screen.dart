@@ -94,7 +94,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     if (crmType == 'sales_crm') {
       destination = role == 'admin'
-          ? SalesAdminDashboard(companyId: companyId)
+          ? AdminDashboard(companyId: companyId)
           : role == 'team_leader'
               ? SalesTeamLeaderDashboard(companyId: companyId, email: email)
               : SalesmanDashboard(companyId: companyId, email: email, salesmanId: userId);

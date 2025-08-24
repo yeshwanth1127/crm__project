@@ -58,5 +58,6 @@ def login(
         "user_id": user.id,
         "company_id": user.company_id,
         "crm_type": company.crm_type,
-        "email": user.email
+        "email": user.email,
+        "full_name": user.full_name
     }

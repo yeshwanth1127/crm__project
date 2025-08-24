@@ -59,13 +59,15 @@ class _LoginScreenState extends State<LoginScreen> {
         final companyId = data['company_id'];
         final userEmail = data['email'] ?? '';
         final userId = data['user_id'];
-        await prefs.setInt('user_id', userId);
+        final fullName = data['full_name'] ?? '';
         
+        await prefs.setInt('user_id', userId);
         await prefs.setString('token', token);
         await prefs.setString('crm_type', crmType);
         await prefs.setString('role', role);
         await prefs.setInt('company_id', companyId);
         await prefs.setString('email', userEmail);
+        await prefs.setString('full_name', fullName);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Login Successful!')),
@@ -89,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (crmType == 'sales_crm') {
       if (role == 'admin') {
-        destination = SalesAdminDashboard(companyId: companyId);
+        destination = AdminDashboard(companyId: companyId);
       } else if (role == 'team_leader') {
         destination = SalesTeamLeaderDashboard(companyId: companyId, email: email);
       } else {

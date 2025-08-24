@@ -87,20 +87,19 @@ class UserApiService {
   // ✅ Update Subscription User Count
   static Future<void> updateSubscriptionUserCount(int companyId) async {
     try {
+      // Use the correct subscription endpoint, not sales endpoint
       final response = await http.post(
-        Uri.parse('$baseUrl/update-user-count/$companyId'),
+        Uri.parse('https://orbitco.in/api/subscription/update-user-count/$companyId'),
         headers: {
           'Content-Type': 'application/json',
         },
       );
       
-      if (response.statusCode == 200) {
-        print('✅ Subscription user count updated successfully');
-      } else {
-        print('⚠️ Warning: Could not update subscription user count: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        // Handle error silently
       }
     } catch (e) {
-      print('⚠️ Warning: Could not update subscription user count: $e');
+      // Handle error silently
     }
   }
 
@@ -242,14 +241,17 @@ static Future<List<dynamic>> getCustomersByStatus(int companyId, String status) 
 }
 
 
-  // ✅ Reward Points Update
-  static Future<void> updateEmployeeRewardPoints(int userId, int newPoints) async {
+  // ✅ Update Employee Reward Points
+  static Future<void> updateEmployeeRewardPoints(int employeeId, int newPoints) async {
     final headers = await _getAuthHeaders();
-    final response = await http.patch(
-      Uri.parse('$baseUrl/employees/update-rewards/$userId'),
+    final uri = Uri.parse('$baseUrl/employees/update-reward-points/$employeeId');
+    
+    final response = await http.put(
+      uri,
       headers: headers,
       body: jsonEncode({'reward_points': newPoints}),
     );
+    
     if (response.statusCode != 200) {
       throw Exception('Failed to update reward points');
     }

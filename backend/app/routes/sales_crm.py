@@ -360,84 +360,58 @@ def update_features(company_id: int, updated_features: List[str], db: Session = 
 
 
 @router.post("/create-user", status_code=status.HTTP_201_CREATED)
-def create_user(
+async def create_user(
     full_name: str = Form(...),
     email: str = Form(...),
     phone: str = Form(...),
     password: str = Form(...),
     role: str = Form(...),
     company_id: int = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     try:
-        print(f"🔍 Creating user: full_name={full_name}, email={email}, phone={phone}, role={role}, company_id={company_id}")
+        # Check if user is from the same company
+        if current_user.company_id != company_id:
+            raise HTTPException(status_code=403, detail="Cannot create users for other companies")
         
-        # Check if user already exists
-        existing_user = db.query(User).filter(User.email == email).first()
+        # Check if email already exists
+        existing_user = db.query(models.User).filter(models.User.email == email).first()
         if existing_user:
-            raise HTTPException(status_code=400, detail="User with this email already exists")
+            raise HTTPException(status_code=400, detail="Email already registered")
         
-        # Check user limit based on subscription plan
-        company = db.query(Company).filter(Company.id == company_id).first()
-        if not company:
-            raise HTTPException(status_code=404, detail="Company not found")
-        
-        # Get current user count for the company
-        current_user_count = db.query(User).filter(User.company_id == company_id).count()
-        print(f"📊 Current user count for company {company_id}: {current_user_count}")
-        
-        # Check subscription limits
-        if company.subscription_id:
-            subscription = db.query(CompanySubscription).filter(CompanySubscription.id == company.subscription_id).first()
-            if subscription:
-                if current_user_count >= subscription.max_users:
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=f"User limit reached. Maximum {subscription.max_users} users allowed for your {subscription.plan.name} plan."
-                    )
-        else:
-            # For companies without subscription, check if they have a plan selected during onboarding
-            # This handles cases where companies are in the process of getting a subscription
-            if current_user_count >= 3:  # Default minimum limit
-                raise HTTPException(
-                    status_code=400, 
-                    detail="User limit reached. Please select a subscription plan to add more users."
-                )
-        
-        # Hash password
+        # Hash the password
         hashed_password = hash_password(password)
-        print(f"🔐 Password hashed successfully")
         
-        new_user = User(
+        # Create new user
+        new_user = models.User(
             full_name=full_name,
             email=email,
             phone=phone,
             password=hashed_password,
             role=role,
-            company_id=company_id
+            company_id=company_id,
+            account_status="Active",
+            reward_points=0,
         )
         
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
-        print(f"✅ User created successfully with ID: {new_user.id}")
-
+        
         # Update subscription user count
         try:
             from ..routes.subscription import update_user_count
             update_user_count(company_id, db)
-            print(f"✅ Subscription user count updated")
         except Exception as e:
-            print(f"⚠️ Warning: Could not update subscription user count: {e}")
-
-        return new_user
+            # Log error but don't fail user creation
+            pass
         
-    except HTTPException:
-        raise
+        return {"message": "User created successfully", "user_id": new_user.id}
+        
     except Exception as e:
-        print(f"❌ Error creating user: {str(e)}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
 
 
 
@@ -456,8 +430,6 @@ def delete_user(
     user = Depends(get_current_user)
 ):
     try:
-        print(f"🔍 Delete user request: user_id={user_id}, authenticated_user={user.id if user else 'None'}")
-        
         user_del = db.query(User).filter(User.id == user_id).first()
         if not user_del:
             raise HTTPException(status_code=404, detail="User not found")
@@ -474,9 +446,8 @@ def delete_user(
         try:
             from ..routes.subscription import update_user_count
             update_user_count(user.company_id, db)
-            print(f"✅ Subscription user count updated for company {user.company_id}")
         except Exception as e:
-            print(f"⚠️ Warning: Could not update subscription user count: {e}")
+            pass
 
         log_audit(db, user.id, user.company_id, user.role, "Deleted User", 
                   "user", user_id, before, None)
@@ -486,7 +457,6 @@ def delete_user(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error deleting user {user_id}: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
@@ -512,19 +482,15 @@ async def debug_create_user(request: Request):
     """Debug endpoint to see raw request data"""
     try:
         body = await request.body()
-        print(f"🔍 Raw request body: {body}")
         
         # Try to parse as JSON
         try:
             json_data = await request.json()
-            print(f"📋 Parsed JSON: {json_data}")
             return {"message": "JSON parsed successfully", "data": json_data}
         except Exception as e:
-            print(f"❌ JSON parsing failed: {e}")
             return {"message": "JSON parsing failed", "raw_body": str(body), "error": str(e)}
             
     except Exception as e:
-        print(f"❌ Request processing failed: {e}")
         return {"message": "Request processing failed", "error": str(e)}
 
 

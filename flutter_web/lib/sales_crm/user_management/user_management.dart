@@ -68,6 +68,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> loadCompanyIdAndFetchUsers() async {
     final prefs = await SharedPreferences.getInstance();
     companyId = prefs.getInt('company_id');
+    
     if (companyId != null) {
       await fetchUsers();
       await fetchSalesmen();

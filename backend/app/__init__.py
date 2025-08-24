@@ -1,7 +1,10 @@
 import os
 from dotenv import load_dotenv
 
-dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env')
-load_dotenv(dotenv_path)
+# Load environment variables
+load_dotenv()
 
-print("✅ SECRET_KEY loaded globally:", os.getenv("SECRET_KEY"))
+# Set SECRET_KEY globally
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is not set")

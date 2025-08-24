@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SubscriptionService {
   static const String baseUrl = 'https://orbitco.in/api';
@@ -26,9 +27,19 @@ class SubscriptionService {
   // Get company subscription
   static Future<Map<String, dynamic>> getCompanySubscription(int companyId) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        throw Exception('Authentication token not found');
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl/subscription/company/$companyId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -46,9 +57,19 @@ class SubscriptionService {
   // Get company features
   static Future<Map<String, dynamic>> getCompanyFeatures(int companyId) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        throw Exception('Authentication token not found');
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl/subscription/company/$companyId/features'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -64,9 +85,19 @@ class SubscriptionService {
   // Subscribe company to a plan
   static Future<Map<String, dynamic>> subscribeCompany(Map<String, dynamic> subscriptionData) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        throw Exception('Authentication token not found');
+      }
+
       final response = await http.post(
         Uri.parse('$baseUrl/subscription/subscribe'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: json.encode(subscriptionData),
       );
 
@@ -84,9 +115,19 @@ class SubscriptionService {
   // Cancel subscription
   static Future<Map<String, dynamic>> cancelSubscription(int companyId) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        throw Exception('Authentication token not found');
+      }
+
       final response = await http.put(
         Uri.parse('$baseUrl/subscription/company/$companyId/cancel'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -103,9 +144,19 @@ class SubscriptionService {
   // Get billing history
   static Future<List<Map<String, dynamic>>> getBillingHistory(int companyId) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        throw Exception('Authentication token not found');
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl/subscription/billing/$companyId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {

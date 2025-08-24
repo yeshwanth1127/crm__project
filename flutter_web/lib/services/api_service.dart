@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// ✅ Adjust your baseUrl based on your testing environment:
 /// For Web → 'https://orbitco.in/api'
@@ -38,72 +39,66 @@ class ApiService {
         body: jsonEncode(requestBody),
       );
 
-      print('Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 201) {
         return jsonDecode(response.body);
       } else {
-        print('❗️ Backend error: ${response.statusCode}');
-        return null;
+        throw Exception('Backend error: ${response.statusCode}');
       }
     } catch (e) {
-      print('❗️ Network/Unexpected Error: $e');
-      return null;
+      throw Exception('Network/Unexpected Error: $e');
     }
   }
-  static Future<Map<String, dynamic>> fetchDashboardStats(int companyId, String range) async {
+  static Future<Map<String, dynamic>> fetchDashboardStats(int companyId) async {
     try {
-      final response = await http.get(
-        Uri.parse('https://orbitco.in/api/sales/analytics/overview/?company_id=$companyId&range=$range')
-      );
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
       
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      final response = await http.get(
+        Uri.parse('$salesBaseUrl/dashboard-stats?company_id=$companyId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        return jsonDecode(response.body);
       } else {
-        print('❌ Dashboard stats API error: ${response.statusCode} - ${response.body}');
-        // Return mock data for now to prevent infinite loading
-        return {
-          "total_customers": 0,
-          "leads": 0,
-          "clients": 0,
-          "interactions": 0,
-          "pending_tasks": 0,
-          "upcoming_followups": 0
-        };
+        throw Exception('Backend error: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Dashboard stats network error: $e');
-      // Return mock data to prevent infinite loading
-      return {
-        "total_customers": 0,
-        "leads": 0,
-        "clients": 0,
-        "interactions": 0,
-        "pending_tasks": 0,
-        "upcoming_followups": 0
-      };
+      throw Exception('Network error: $e');
     }
   }
 
-  static Future<List<String>> fetchSelectedFeatures(int companyId) async {
+  static Future<Map<String, dynamic>> fetchSelectedFeatures(int companyId) async {
     try {
-      final response = await http.get(
-        Uri.parse('https://orbitco.in/api/subscription/company/$companyId/features')
-      );
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
       
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      final response = await http.get(
+        Uri.parse('$salesBaseUrl/selected-features?company_id=$companyId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return List<String>.from(data['features'] ?? []);
+        return jsonDecode(response.body);
       } else {
-        print('❌ Features API error: ${response.statusCode} - ${response.body}');
-        // Return core features as fallback
-        return ['contact_management', 'lead_management', 'task_tracking', 'basic_dashboard'];
+        throw Exception('Backend error: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Features network error: $e');
-      // Return core features as fallback
-      return ['contact_management', 'lead_management', 'task_tracking', 'basic_dashboard'];
+      throw Exception('Network error: $e');
     }
   }
 

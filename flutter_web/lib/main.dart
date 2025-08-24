@@ -69,12 +69,15 @@ class _SplashDeciderState extends State<SplashDecider> {
       try {
         await FeatureFilterService.initializeFeatures();
       } catch (e) {
-        print('Feature initialization failed: $e');
-        // Continue to dashboard with basic features
+        // Handle feature initialization error silently
       }
       
-      // Navigate to dashboard
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      // Navigate to the appropriate dashboard based on role and CRM type
+      final dashboard = determineDashboard(crmType, role, email, companyId, userId);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => dashboard),
+      );
     } else {
       Navigator.pushReplacement(
         context,
@@ -86,7 +89,7 @@ class _SplashDeciderState extends State<SplashDecider> {
   Widget determineDashboard(String crmType, String role, String email, int companyId, int? userId) {
     if (crmType == 'sales_crm') {
       if (role == 'admin') {
-        return SalesAdminDashboard(companyId: companyId);
+        return AdminDashboard(companyId: companyId);
       } else if (role == 'team_leader') {
         return SalesTeamLeaderDashboard(companyId: companyId, email: email);
       } else if (role == 'employee') {

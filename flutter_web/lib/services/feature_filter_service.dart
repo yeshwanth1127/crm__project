@@ -1,511 +1,163 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'subscription_service.dart';
-import 'dart:convert'; // Added for json.decode
+import 'package:flutter_web/services/subscription_service.dart';
 
 class FeatureFilterService {
-  static List<String> _availableFeatures = [];
-  static String _currentPlan = '';
-  static int _userLimit = 0;
+  static Map<String, dynamic> _availableFeatures = {};
+  static Map<String, dynamic> _currentPlan = {};
   static int _currentUsers = 0;
+  static int _userLimit = 3;
+  static bool _canAccess = true;
+  static bool _canCreateMore = true;
+  static int _remainingSlots = 2;
 
-  // Plan-specific feature mappings with user limits
-  static const Map<String, Map<String, dynamic>> _planDetails = {
-    'Launch': {
-      'features': [
-        'contact_management',
-        'lead_management',
-        'task_tracking',
-        'basic_dashboard',
-        'limited_custom_fields',
-        'mobile_access',
-        'email_support',
-        'ssl_security',
-        'vps_hosting',
-        'user_management'
-      ],
-      'user_limit': 3,
-      'additional_user_price': 199.0
-    },
-    'Accelerate': {
-      'features': [
-        'contact_management',
-        'lead_management',
-        'task_tracking',
-        'basic_dashboard',
-        'limited_custom_fields',
-        'mobile_access',
-        'email_support',
-        'ssl_security',
-        'vps_hosting',
-        'lead_pipeline',
-        'visual_sales_pipeline',
-        'email_sms_notifications',
-        'custom_dashboards',
-        'customer_segments',
-        'custom_fields',
-        'support_tickets',
-        'role_based_access',
-        'customer_notes',
-        'email_sms_integration',
-        'team_chat',
-        'auto_backups',
-        'user_management'
-      ],
-      'user_limit': 12,
-      'additional_user_price': 199.0
-    },
-    'Scale': {
-      'features': [
-        'contact_management',
-        'lead_management',
-        'task_tracking',
-        'basic_dashboard',
-        'limited_custom_fields',
-        'mobile_access',
-        'email_support',
-        'ssl_security',
-        'vps_hosting',
-        'lead_pipeline',
-        'visual_sales_pipeline',
-        'email_sms_notifications',
-        'custom_dashboards',
-        'customer_segments',
-        'custom_fields',
-        'support_tickets',
-        'role_based_access',
-        'customer_notes',
-        'email_sms_integration',
-        'team_chat',
-        'auto_backups',
-        'campaign_management',
-        'custom_lead_stages',
-        'bulk_messaging',
-        'advanced_analytics',
-        'file_uploads',
-        'conversation_logs',
-        'role_management',
-        'user_management',
-        'activity_timeline',
-        'notification_center',
-        'custom_domain'
-      ],
-      'user_limit': 30,
-      'additional_user_price': 149.0
-    },
-    'Essentials': {
-      'features': [
-        'contact_management',
-        'lead_management',
-        'task_tracking',
-        'follow_up_reminders',
-        'activity_logs',
-        'admin_salesman_roles',
-        'custom_branding',
-        'data_ownership',
-        'user_management'
-      ],
-      'user_limit': 3,
-      'additional_user_price': null
-    },
-    'Pro Deploy': {
-      'features': [
-        'contact_management',
-        'lead_management',
-        'task_tracking',
-        'follow_up_reminders',
-        'activity_logs',
-        'admin_salesman_roles',
-        'custom_branding',
-        'data_ownership',
-        'role_based_access',
-        'support_module',
-        'custom_fields',
-        'file_uploads',
-        'enhanced_analytics',
-        'sms_email_notifications',
-        'training_videos',
-        'user_management'
-      ],
-      'user_limit': 25,
-      'additional_user_price': null
-    },
-    'Enterprise': {
-      'features': [
-        'contact_management',
-        'lead_management',
-        'task_tracking',
-        'follow_up_reminders',
-        'activity_logs',
-        'admin_salesman_roles',
-        'custom_branding',
-        'data_ownership',
-        'role_based_access',
-        'support_module',
-        'custom_fields',
-        'file_uploads',
-        'enhanced_analytics',
-        'sms_email_notifications',
-        'training_videos',
-        'white_labeling',
-        'rest_api',
-        'campaign_management',
-        'crm_reports',
-        'role_audit',
-        'data_segmentation',
-        'custom_workflows',
-        'lifetime_license',
-        'dedicated_manager',
-        'user_management'
-      ],
-      'user_limit': 50,
-      'additional_user_price': null
-    }
-  };
-
-  // Get features for a specific plan
-  static List<String> getPlanFeatures(String planName) {
-    return _planDetails[planName]?['features'] ?? _getCoreFeatures();
-  }
-
-  // Get user limit for a specific plan
-  static int getPlanUserLimit(String planName) {
-    return _planDetails[planName]?['user_limit'] ?? 3;
-  }
-
-  // Get additional user price for a specific plan
-  static double? getPlanAdditionalUserPrice(String planName) {
-    return _planDetails[planName]?['additional_user_price'];
-  }
-
-  // Initialize features for the current user
   static Future<void> initializeFeatures() async {
-    print('🚀 Starting feature initialization...');
     try {
       final prefs = await SharedPreferences.getInstance();
       final companyId = prefs.getInt('company_id');
-      final userToken = prefs.getString('user_token');
-      
-      print('📱 Company ID: $companyId, User Token: ${userToken != null ? "Present" : "Missing"}');
-      
-      // Check if we have valid authentication
-      if (companyId == null || userToken == null) {
-        print('❌ No company ID or user token found, using Launch plan as fallback');
-        _availableFeatures = getPlanFeatures('Launch');
-        _currentPlan = 'Launch Plan';
-        _userLimit = 3; // Default minimum limit
-        _currentUsers = 1; // At least 1 user (the admin who is logged in)
-        return;
-      }
-      
-      try {
-        print('🌐 Fetching features from API for company: $companyId');
-        final featuresData = await SubscriptionService.getCompanyFeatures(companyId);
-        print('📡 API Response: $featuresData');
-        
-        // Handle features data that might come as JSON string or list
-        dynamic featuresRaw = featuresData['features'];
-        print('🔧 Raw features data type: ${featuresRaw.runtimeType}, value: $featuresRaw');
-        
-        if (featuresRaw is String) {
-          // Parse JSON string to list
-          try {
-            final List<dynamic> parsedFeatures = json.decode(featuresRaw);
-            _availableFeatures = parsedFeatures.map((f) => f.toString()).toList();
-            print('✅ Parsed features from JSON string: $_availableFeatures');
-          } catch (e) {
-            print('❌ Error parsing features JSON: $e');
-            _availableFeatures = _getCoreFeatures();
-          }
-        } else if (featuresRaw is List) {
-          _availableFeatures = featuresRaw.map((f) => f.toString()).toList();
-          print('✅ Features from list: $_availableFeatures');
-        } else {
-          _availableFeatures = _getCoreFeatures();
-          print('⚠️ No features data, using core features: $_availableFeatures');
-        }
-        
-        _currentPlan = featuresData['plan_name'] ?? 'Launch Plan';
-        _userLimit = featuresData['user_limit'] ?? 3; // Default to 3 if not provided
-        _currentUsers = featuresData['current_users'] ?? 1; // Default to 1 if not provided
-        
-        // Ensure current users is never 0 (at least 1 admin user exists)
-        if (_currentUsers <= 0) {
-          _currentUsers = 1;
-          print('⚠️ Current users was 0, setting to 1 (admin user)');
-        }
-        
-        print('📋 Plan: $_currentPlan, User Limit: $_userLimit, Current Users: $_currentUsers');
-        
-        // If no features from API, use plan-based features
-        if (_availableFeatures.isEmpty && _currentPlan != 'Launch Plan') {
-          _availableFeatures = getPlanFeatures(_currentPlan);
-          print('🔄 Using plan-based features: $_availableFeatures');
-        }
-        
-        print('✅ Features initialized successfully: ${_availableFeatures.length} features for plan: $_currentPlan');
-        
-      } catch (apiError) {
-        print('❌ API error fetching features: $apiError');
-        print('🔄 Falling back to local storage and plan-based features...');
-        
-        // Try to get plan info from local storage as fallback
-        await _initializeFromLocalStorage();
-        
-        // If we still don't have features, try to get them from the current plan
-        if (_availableFeatures.isEmpty && _currentPlan != 'Launch Plan') {
-          _availableFeatures = getPlanFeatures(_currentPlan);
-          print('🔄 Using plan-based features as fallback: $_availableFeatures');
-        }
-        
-        // Final fallback: use Launch plan features (which we know exist in the database)
-        if (_availableFeatures.isEmpty) {
-          _availableFeatures = getPlanFeatures('Launch');
-          _currentPlan = 'Launch Plan';
-          _userLimit = 3;
-          _currentUsers = 1;
-          print('🔄 Final fallback: Using Launch plan features');
-        }
-      }
-      
-    } catch (e) {
-      print('❌ Error initializing features: $e');
-      // Fallback to Launch plan features
-      _availableFeatures = getPlanFeatures('Launch');
-      _currentPlan = 'Launch Plan';
-      _userLimit = 3; // Default minimum limit
-      _currentUsers = 1; // At least 1 user (the admin who is logged in)
-    }
-    
-    // Final validation - ensure user count is never 0
-    if (_currentUsers <= 0) {
-      _currentUsers = 1;
-      print('⚠️ Final validation: Current users was 0, setting to 1 (admin user)');
-    }
-    
-    // Final validation
-    print('🔍 Final initialization state:');
-    print('   - Available features: $_availableFeatures');
-    print('   - Current plan: $_currentPlan');
-    print('   - User limit: $_userLimit');
-    print('   - Current users: $_currentUsers');
-    print('   - Has user_management: ${hasFeature('user_management')}');
-  }
+      final userToken = prefs.getString('token');
 
-  // Fallback method to initialize features from local storage
-  static Future<void> _initializeFromLocalStorage() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final planName = prefs.getString('selected_plan_name');
-      
-      if (planName != null && _planDetails.containsKey(planName)) {
-        _availableFeatures = getPlanFeatures(planName);
-        _currentPlan = planName;
-        _userLimit = getPlanUserLimit(planName);
-        _currentUsers = 1; // At least 1 user (the admin who is logged in)
-        print('✅ Features initialized from local storage for plan: $planName with user limit: $_userLimit, current users: $_currentUsers');
+      if (companyId != null && userToken != null) {
+        final response = await SubscriptionService.getCompanyFeatures(companyId);
+        
+        // Extract features and convert to the expected format
+        final featuresList = response['features'] as List? ?? [];
+        _availableFeatures = {};
+        for (final feature in featuresList) {
+          _availableFeatures[feature] = true;
+        }
+        
+        // Extract plan information
+        _currentPlan = {
+          'plan_name': response['plan_name'] ?? 'Launch Plan',
+          'user_limit': response['user_limit'] ?? 3,
+        };
+        
+        _currentUsers = response['current_users'] ?? 1;
+        _userLimit = response['user_limit'] ?? 3;
+        _canAccess = response['subscription_status'] != 'no_subscription';
+        _canCreateMore = _currentUsers < _userLimit;
+        _remainingSlots = _userLimit - _currentUsers;
       } else {
-        // Use Launch plan as default since we know it exists in the database
-        _availableFeatures = getPlanFeatures('Launch');
-        _currentPlan = 'Launch Plan';
-        _userLimit = 3; // Default minimum limit
-        _currentUsers = 1; // At least 1 user (the admin who is logged in)
-        print('⚠️ No plan found in local storage, using Launch plan with default user limit: $_userLimit, current users: $_currentUsers');
-      }
-      
-      // Ensure current users is never 0
-      if (_currentUsers <= 0) {
+        // Fallback to Launch Plan
+        _availableFeatures = {
+          'user_management': true,
+          'customer_management': true,
+          'task_tracking': true,
+        };
+        _currentPlan = {
+          'plan_name': 'Launch Plan',
+          'user_limit': 3,
+        };
         _currentUsers = 1;
-        print('⚠️ Current users was 0, setting to 1 (admin user)');
+        _userLimit = 3;
+        _canAccess = true;
+        _canCreateMore = true;
+        _remainingSlots = 2;
       }
     } catch (e) {
-      print('❌ Error initializing from local storage: $e');
-      // Use Launch plan as final fallback
-      _availableFeatures = getPlanFeatures('Launch');
-      _currentPlan = 'Launch Plan';
-      _userLimit = 3; // Default minimum limit
-      _currentUsers = 1; // At least 1 user (the admin who is logged in)
+      // Fallback to Launch Plan on error
+      _availableFeatures = {
+        'user_management': true,
+        'customer_management': true,
+        'task_tracking': true,
+      };
+      _currentPlan = {
+        'plan_name': 'Launch Plan',
+        'user_limit': 3,
+      };
+      _currentUsers = 1;
+      _userLimit = 3;
+      _canAccess = true;
+      _canCreateMore = true;
+      _remainingSlots = 2;
     }
   }
 
-  // Get core features (available in all plans)
-  static List<String> _getCoreFeatures() {
-    return [
-      'contact_management',
-      'lead_management',
-      'task_tracking',
-      'basic_dashboard'
-    ];
+  static bool hasFeature(String feature) {
+    return _availableFeatures[feature] == true;
   }
 
-  // Check if a specific feature is available
-  static bool hasFeature(String featureKey) {
-    return _availableFeatures.contains(featureKey);
-  }
-
-  // Get all available features
-  static List<String> getAvailableFeatures() {
-    return List.from(_availableFeatures);
-  }
-
-  // Get current plan info
   static Map<String, dynamic> getPlanInfo() {
-    return {
-      'plan_name': _currentPlan,
-      'user_limit': _userLimit,
-      'current_users': _currentUsers,
-      'available_features': _availableFeatures,
-    };
-  }
-
-  // Filter dashboard menu items based on available features
-  static List<Map<String, dynamic>> filterDashboardMenu(List<Map<String, dynamic>> allMenuItems) {
-    print('🔍 Filtering dashboard menu...');
-    print('📋 Available features: $_availableFeatures');
-    print('📋 Current plan: $_currentPlan');
-    print('📋 User limit: $_userLimit');
-    
-    final filteredItems = allMenuItems.where((item) {
-      final featureKey = item['feature_key'];
-      final title = item['title'] as String? ?? '';
-      
-      // ALWAYS show User Management (but functionality will be limited by user count)
-      if (title == 'User Management') {
-        print('✅ Always showing User Management (functionality limited by plan)');
-        return true;
-      }
-      
-      // Show items without feature requirements
-      if (featureKey == null) {
-        print('✅ Showing item "${item['title']}" (no feature requirement)');
-        return true;
-      }
-      
-      // Check if feature is available for current plan
-      final hasFeatureAccess = hasFeature(featureKey);
-      print('${hasFeatureAccess ? "✅" : "❌"} Item "${item['title']}" with feature "$featureKey": ${hasFeatureAccess ? "SHOWING" : "HIDDEN"}');
-      return hasFeatureAccess;
-    }).toList();
-    
-    print('📋 Final filtered menu items: ${filteredItems.map((item) => item['title']).toList()}');
-    return filteredItems;
-  }
-
-  // Check if user can access advanced features
-  static bool canAccessAdvancedFeatures() {
-    return hasFeature('advanced_analytics') || 
-           hasFeature('campaign_management') || 
-           hasFeature('custom_workflows');
-  }
-
-  // Check if user can access support features
-  static bool canAccessSupportFeatures() {
-    return hasFeature('support_tickets') || 
-           hasFeature('support_module');
-  }
-
-  // Check if user can access marketing features
-  static bool canAccessMarketingFeatures() {
-    return hasFeature('campaign_management') || 
-           hasFeature('bulk_messaging') || 
-           hasFeature('marketing_automation');
-  }
-
-  // Check if user can create more users
-  static bool canCreateMoreUsers() {
-    final canCreate = _currentUsers < _userLimit;
-    print('👥 User creation check: $_currentUsers < $_userLimit = $canCreate');
-    return canCreate;
-  }
-
-  // Get remaining user slots
-  static int getRemainingUserSlots() {
-    return _userLimit - _currentUsers;
-  }
-
-  // Check if user management is available with limits
-  static bool canAccessUserManagement() {
-    return hasFeature('user_management');
-  }
-
-  // Get user management info
-  static Map<String, dynamic> getUserManagementInfo() {
-    final info = {
-      'can_access': canAccessUserManagement(),
-      'current_users': _currentUsers,
-      'user_limit': _userLimit,
-      'can_create_more': canCreateMoreUsers(),
-      'remaining_slots': getRemainingUserSlots(),
-      'plan_name': _currentPlan,
-    };
-    print('📊 User Management Info: $info');
-    return info;
-  }
-
-  // Get feature-based dashboard title
-  static String getDashboardTitle() {
-    if (canAccessAdvancedFeatures()) {
-      return 'Enterprise CRM Dashboard';
-    } else if (canAccessSupportFeatures()) {
-      return 'Professional CRM Dashboard';
-    } else {
-      return 'Basic CRM Dashboard';
-    }
-  }
-
-  // Check if feature is available for current plan
-  static bool isFeatureAvailableForPlan(String featureKey) {
-    if (_currentPlan == 'No Plan') return false;
-    final planFeatures = getPlanFeatures(_currentPlan);
-    return planFeatures.contains(featureKey);
-  }
-
-  // Get plan upgrade suggestions
-  static List<String> getUpgradeSuggestions() {
-    if (_currentPlan == 'No Plan') return [];
-    
-    final suggestions = <String>[];
-    
-    if (!hasFeature('support_tickets') && _currentPlan == 'Launch') {
-      suggestions.add('Upgrade to Accelerate for Support CRM features');
-    }
-    
-    if (!hasFeature('campaign_management') && _currentPlan != 'Scale' && _currentPlan != 'Enterprise') {
-      suggestions.add('Upgrade to Scale for Marketing CRM features');
-    }
-    
-    if (!hasFeature('advanced_analytics') && _currentPlan != 'Scale' && _currentPlan != 'Enterprise') {
-      suggestions.add('Upgrade to Scale for Advanced Analytics');
-    }
-    
-    return suggestions;
-  }
-
-  // Method to update current user count (call this when users are created/deleted)
-  static void updateUserCount(int newCount) {
-    _currentUsers = newCount;
-    print('👥 Updated user count to: $_currentUsers');
-  }
-
-  // Method to force refresh user count from API
-  static Future<void> forceRefreshUserCount() async {
-    try {
-      print('🔄 Force refreshing user count from API...');
-      await initializeFeatures();
-      print('✅ User count force refreshed successfully');
-    } catch (e) {
-      print('❌ Error force refreshing user count: $e');
-    }
-  }
-
-  // Get current plan name from local storage
-  static String getCurrentPlanName() {
     return _currentPlan;
   }
 
-  // Check if current plan has a specific feature
-  static bool hasPlanFeature(String featureKey) {
-    if (_currentPlan == 'No Plan' || _currentPlan.isEmpty) return false;
-    final planFeatures = getPlanFeatures(_currentPlan);
-    return planFeatures.contains(featureKey);
+  static int getCurrentUsers() {
+    return _currentUsers;
+  }
+
+  static int getUserLimit() {
+    return _userLimit;
+  }
+
+  static bool canAccess() {
+    return _canAccess;
+  }
+
+  static bool canCreateMoreUsers() {
+    return _canCreateMore;
+  }
+
+  static int getRemainingSlots() {
+    return _remainingSlots;
+  }
+
+  static Map<String, dynamic> getUserManagementInfo() {
+    return {
+      'can_access': _canAccess,
+      'current_users': _currentUsers,
+      'user_limit': _userLimit,
+      'can_create_more': _canCreateMore,
+      'remaining_slots': _remainingSlots,
+      'plan_name': _currentPlan['plan_name'] ?? 'Launch Plan',
+    };
+  }
+
+  static double? getPlanAdditionalUserPrice(String planName) {
+    final pricing = {
+      'Launch Plan': 500.0,
+      'Growth Plan': 400.0,
+      'Scale Plan': 300.0,
+    };
+    return pricing[planName];
+  }
+
+  static void updateUserCount(int newCount) {
+    _currentUsers = newCount;
+    _canCreateMore = _currentUsers < _userLimit;
+    _remainingSlots = _userLimit - _currentUsers;
+  }
+
+  // Force refresh features from API
+  static Future<void> forceRefreshFeatures() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final companyId = prefs.getInt('company_id');
+      final userToken = prefs.getString('token');
+
+      if (companyId != null && userToken != null) {
+        final response = await SubscriptionService.getCompanyFeatures(companyId);
+        
+        // Extract features and convert to the expected format
+        final featuresList = response['features'] as List? ?? [];
+        _availableFeatures = {};
+        for (final feature in featuresList) {
+          _availableFeatures[feature] = true;
+        }
+        
+        // Extract plan information
+        _currentPlan = {
+          'plan_name': response['plan_name'] ?? 'Launch Plan',
+          'user_limit': response['user_limit'] ?? 3,
+        };
+        
+        _currentUsers = response['current_users'] ?? 1;
+        _userLimit = response['user_limit'] ?? 3;
+        _canAccess = response['subscription_status'] != 'no_subscription';
+        _canCreateMore = _currentUsers < _userLimit;
+        _remainingSlots = _userLimit - _currentUsers;
+      }
+    } catch (e) {
+      // Keep existing values on error
+    }
   }
 }
