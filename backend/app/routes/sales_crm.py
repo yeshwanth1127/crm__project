@@ -307,8 +307,8 @@ def get_analytics(company_id: int, db: Session = Depends(get_db)):
     )
     pending_tasks = (
     db.query(models.TaskAssignment)
-    .join(models.User, models.User.id == models.TaskAssignment.assigned_to)
-    .filter(models.User.company_id == company_id, models.TaskAssignment.status == 'assigned')
+            .join(models.users, models.users.id == models.TaskAssignment.assigned_to)
+        .filter(models.users.company_id == company_id, models.TaskAssignment.status == 'assigned')
     .count()
 )
 
@@ -962,8 +962,8 @@ def assign_task(
 def get_tasks_by_company(company_id: int, db: Session = Depends(get_db)):
     tasks = (
         db.query(models.TaskAssignment)
-        .join(models.User, models.TaskAssignment.assigned_to == models.User.id)
-        .filter(models.User.company_id == company_id)
+        .join(models.users, models.TaskAssignment.assigned_to == models.users.id)
+        .filter(models.users.company_id == company_id)
         .all()
     )
     return [schemas.TaskAssignmentOut.from_orm_with_names(task) for task in tasks]
@@ -974,8 +974,8 @@ def get_assigned_tasks(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(models.TaskAssignment).join(models.User, models.User.id == models.TaskAssignment.assigned_to)\
-                .filter(models.User.company_id == company_id)
+    query = db.query(models.TaskAssignment).join(models.users, models.users.id == models.TaskAssignment.assigned_to)\
+        .filter(models.users.company_id == company_id)
     if status:
         query = query.filter(models.TaskAssignment.status == status)
     return query.order_by(models.TaskAssignment.due_date.asc()).all()
@@ -1015,8 +1015,8 @@ def get_task_logs(
     db: Session = Depends(get_db)
 ):
     query = db.query(models.TaskLog).join(models.TaskAssignment, models.TaskLog.task_id == models.TaskAssignment.id)\
-            .join(models.User, models.TaskAssignment.assigned_to == models.User.id)\
-            .filter(models.User.company_id == company_id)\
+            .join(models.users, models.TaskAssignment.assigned_to == models.users.id)\
+            .filter(models.users.company_id == company_id)\
             .order_by(models.TaskLog.performed_at.desc())
     return query.all()
 
@@ -1062,9 +1062,9 @@ def initialize_task_types(db: Session = Depends(get_db)):
 @router.get("/team-leader/{team_leader_id}/overview")
 def get_team_leader_dashboard_overview(team_leader_id: int, db: Session = Depends(get_db)):
     
-    salesmen = db.query(User).filter(
-        User.assigned_team_leader == team_leader_id,
-        User.role == 'salesman'
+    salesmen = db.query(models.users).filter(
+        models.users.assigned_team_leader == team_leader_id,
+        models.users.role == 'salesman'
     ).all()
 
     salesmen_ids = [s.id for s in salesmen]
