@@ -16,13 +16,35 @@ from .database import Base, engine
 # ✅ Initialize FastAPI app
 app = FastAPI()
 
-# ✅ Enable CORS (you can restrict origins later for production)
+# ✅ Enable CORS with explicit configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8080", 
+        "http://localhost:55692",  # Flutter web dev server
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:55692",
+        "https://orbitco.in",      # Production domain
+        "https://www.orbitco.in",
+        "*"  # Allow all origins for now (remove in production)
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers"
+    ],
+    expose_headers=["*"],
+    max_age=86400,  # Cache preflight for 24 hours
 )
 
 
@@ -30,6 +52,33 @@ app.add_middleware(
 @app.get("/")
 def root():
     return {"status": "ok"}
+
+# ✅ Test CORS endpoint
+@app.get("/test-cors")
+def test_cors():
+    return {"message": "CORS test successful", "timestamp": "2024-01-01"}
+
+# ✅ Test OPTIONS endpoint
+@app.options("/test-cors")
+def test_cors_options():
+    return {"message": "CORS preflight successful"}
+
+# ✅ Global CORS handler for all routes
+@app.middleware("http")
+async def add_cors_headers(request, call_next):
+    print(f"🌐 CORS middleware: {request.method} {request.url}")
+    print(f"📋 Request headers: {dict(request.headers)}")
+    
+    response = await call_next(request)
+    
+    # Add CORS headers
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Accept, Accept-Language, Content-Language, Content-Type, Authorization, X-Requested-With, Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+    response.headers["Access-Control-Expose-Headers"] = "*"
+    
+    print(f"📤 Response headers: {dict(response.headers)}")
+    return response
 
 # ✅ Print all routes for debugging
 @app.on_event("startup")

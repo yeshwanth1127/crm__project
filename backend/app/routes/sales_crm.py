@@ -433,28 +433,46 @@ def delete_user(
     db: Session = Depends(get_db),
     user = Depends(get_current_user)
 ):
-    user_del = db.query(User).filter(User.id == user_id).first()
-    if not user_del:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    before = user_del.__dict__.copy()
-    db.delete(user_del)
-    db.commit()
-
-    # Update subscription user count
     try:
-        from ..routes.subscription import update_user_count
-        update_user_count(user.company_id, db)
+        print(f"🔍 Delete user request: user_id={user_id}, authenticated_user={user.id if user else 'None'}")
+        
+        user_del = db.query(User).filter(User.id == user_id).first()
+        if not user_del:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Check if user belongs to same company
+        if user_del.company_id != user.company_id:
+            raise HTTPException(status_code=403, detail="Cannot delete user from different company")
+        
+        before = user_del.__dict__.copy()
+        db.delete(user_del)
+        db.commit()
+
+        # Update subscription user count
+        try:
+            from ..routes.subscription import update_user_count
+            update_user_count(user.company_id, db)
+            print(f"✅ Subscription user count updated for company {user.company_id}")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not update subscription user count: {e}")
+
+        log_audit(db, user.id, user.company_id, user.role, "Deleted User", 
+                  "user", user_id, before, None)
+
+        return {"message": "User deleted successfully"}
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Warning: Could not update subscription user count: {e}")
+        print(f"❌ Error deleting user {user_id}: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-    log_audit(db, user.id, user.company_id, user.role, "Deleted User", 
-              "user", user_id, before, None)
-
-    return {"message": "User deleted successfully"}
-
-
-
+# Add OPTIONS method for CORS preflight
+@router.options("/delete-user/{user_id}")
+def delete_user_options(user_id: int):
+    """Handle CORS preflight for delete user endpoint"""
+    return {"message": "OK"}
 
 
 @router.get("/company-settings")

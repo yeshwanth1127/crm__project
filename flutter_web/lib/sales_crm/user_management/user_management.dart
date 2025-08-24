@@ -227,6 +227,9 @@ Widget _buildAuditLogTile(dynamic log) {
       // Refresh users list
       await fetchUsers();
       
+      // Update backend subscription user count
+      await UserApiService.updateSubscriptionUserCount(companyId);
+      
       // Update the FeatureFilterService user count
       final updatedUserCount = userList.length;
       FeatureFilterService.updateUserCount(updatedUserCount);
@@ -407,6 +410,9 @@ Widget _buildAuditLogTile(dynamic log) {
       
       // Refresh users list
       await fetchUsers();
+      
+      // Update backend subscription user count
+      await UserApiService.updateSubscriptionUserCount(companyId!);
       
       // Update the FeatureFilterService user count
       final updatedUserCount = userList.length;

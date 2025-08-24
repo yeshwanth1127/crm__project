@@ -62,7 +62,11 @@ class UserApiService {
 
   // ✅ Delete User
   static Future<bool> deleteUser(int userId) async {
-    final response = await http.delete(Uri.parse('$baseUrl/delete-user/$userId'));
+    final headers = await _getAuthHeaders();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/delete-user/$userId'),
+      headers: headers,
+    );
     if (response.statusCode == 200) return true;
     throw Exception('Failed to delete user: ${response.body}');
   }
