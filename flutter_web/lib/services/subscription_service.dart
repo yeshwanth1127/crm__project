@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SubscriptionService {
-  static const String baseUrl = 'https://orbitco.in/api';
+  static const String baseUrl = 'https://orbitco.in';
   
   // Get available subscription plans
   static Future<List<Map<String, dynamic>>> getAvailablePlans() async {
@@ -34,13 +34,13 @@ class SubscriptionService {
         throw Exception('Authentication token not found');
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/subscription/company/$companyId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+              final response = await http.get(
+          Uri.parse('$baseUrl/subscription/company/$companyId'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -64,13 +64,13 @@ class SubscriptionService {
         throw Exception('Authentication token not found');
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/subscription/company/$companyId/features'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+              final response = await http.get(
+          Uri.parse('$baseUrl/subscription/company/$companyId/features'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -92,14 +92,14 @@ class SubscriptionService {
         throw Exception('Authentication token not found');
       }
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/subscription/subscribe'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode(subscriptionData),
-      );
+              final response = await http.post(
+          Uri.parse('$baseUrl/subscription/subscribe'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: json.encode(subscriptionData),
+        );
 
       if (response.statusCode == 200) {
         return json.decode(response.body);

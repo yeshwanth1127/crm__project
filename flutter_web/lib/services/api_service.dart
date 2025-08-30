@@ -2,14 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// ✅ Adjust your baseUrl based on your testing environment:
-/// For Web → 'https://orbitco.in/api'
-/// For Android Emulator → 'http://10.0.2.2:8000'
-/// For physical device → 'http://<your_local_ip>:8000'
+/// ✅ Backend URLs (Update these based on your server configuration):
+/// If backend is on orbitco.in:8001 → 'https://orbitco.in:8001'
+/// If backend is on orbitco.in (port 80/443) → 'https://orbitco.in'
+/// For local development → 'http://localhost:8001'
 
 class ApiService {
-  static const String salesBaseUrl = 'https://orbitco.in/api/sales';
+  static const String salesBaseUrl = 'https://orbitco.in/sales';
   static const String baseUrl = 'https://orbitco.in/api/onboarding';
+  static const String authBaseUrl = 'https://orbitco.in/api/auth';
 
   Future<Map<String, dynamic>?> submitOnboarding(
     String companySize, 

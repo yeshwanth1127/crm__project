@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserApiService {
-  static const baseUrl = ApiService.salesBaseUrl;
+  static const baseUrl = 'https://orbitco.in/sales';
 
   // ✅ Fetch Users (http)
   static Future<List<dynamic>> fetchUsers(int companyId, {String? role}) async {
@@ -89,7 +89,7 @@ class UserApiService {
     try {
       // Use the correct subscription endpoint, not sales endpoint
       final response = await http.post(
-        Uri.parse('https://orbitco.in/api/subscription/update-user-count/$companyId'),
+        Uri.parse('https://orbitco.in/subscription/update-user-count/$companyId'),
         headers: {
           'Content-Type': 'application/json',
         },
