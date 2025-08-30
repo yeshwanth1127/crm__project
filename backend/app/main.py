@@ -3,7 +3,8 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
-from app.routes import sales_crm, subscription, onboarding, auth
+from .routes import sales_crm, subscription, onboarding
+from . import auth
 
 # Load environment variables
 load_dotenv()
@@ -41,7 +42,6 @@ async def add_cors_headers(request: Request, call_next):
     return response
 
 # Include routers
-app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(sales_crm.router, prefix="/sales", tags=["Sales CRM"])
 app.include_router(subscription.router, prefix="/subscription", tags=["Subscription"])
 app.include_router(onboarding.router, prefix="/onboarding", tags=["Onboarding"])
