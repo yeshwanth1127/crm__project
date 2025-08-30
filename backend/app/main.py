@@ -18,6 +18,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:55692",  # Flutter web dev server
+        "http://localhost:49301",  # Current Flutter dev server port
         "https://orbitco.in",
         "https://www.orbitco.in",
     ],
@@ -33,11 +34,27 @@ app.add_middleware(
 async def add_cors_headers(request: Request, call_next):
     response = await call_next(request)
     
-    # Add CORS headers to all responses
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    # Get the origin from the request
+    origin = request.headers.get("origin")
+    
+    # Check if origin is in allowed list
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://localhost:55692",
+        "http://localhost:49301",
+        "https://orbitco.in",
+        "https://www.orbitco.in",
+    ]
+    
+    if origin in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "*"
     response.headers["Access-Control-Expose-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     
     return response
 
